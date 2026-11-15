@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b2620">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Boule</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --sand:#efe6d2; --sand-2:#e4d7bb; --paper:#fbf7ee; --ink:#2b2620; --ink-2:#6b6255;
+  --steel:#8b929a; --jack:#e0552b; --ok:#2f7d4f; --warn:#b7791f; --blue:#2c5d8a;
+  --r:14px; --tabh:64px; --safe-b:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--sand);color:var(--ink);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;
+  padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;background:var(--ink);color:var(--paper)}
+header h1{font-size:19px;margin:0;letter-spacing:.3px;flex:1;display:flex;align-items:center;gap:8px}
+header h1 .dot{width:12px;height:12px;border-radius:50%;background:var(--jack);display:inline-block}
+.iconbtn{background:none;border:0;color:inherit;padding:8px;border-radius:10px;cursor:pointer}
+main{padding:14px 14px calc(var(--tabh) + var(--safe-b) + 20px);max-width:720px;margin:0 auto}
+section.tab{display:none} section.tab.active{display:block}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(4,1fr);
+  height:calc(var(--tabh) + var(--safe-b));padding-bottom:var(--safe-b);background:var(--paper);border-top:1px solid var(--sand-2)}
+nav.tabs button{border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-size:12px;color:var(--ink-2);cursor:pointer}
+nav.tabs button svg{width:24px;height:24px}
+nav.tabs button.active{color:var(--ink);font-weight:600}
+nav.tabs button.active svg{color:var(--jack)}
+.card{background:var(--paper);border-radius:var(--r);padding:16px;margin-bottom:12px;box-shadow:0 1px 0 rgba(0,0,0,.05)}
+.card h2{font-size:17px;margin:0 0 8px}
+.muted{color:var(--ink-2);font-size:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:13px 18px;
+  font-weight:600;cursor:pointer;background:var(--sand-2);color:var(--ink);min-height:48px}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn.accent{background:var(--jack);color:#fff}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>.btn{flex:1}
+ul.tips{margin:8px 0 0;padding-left:18px;color:var(--ink-2);font-size:14px}
+ul.tips li{margin:3px 0}
+/* Kamera */
+.live{position:fixed;inset:0;z-index:20;background:#000;display:none;flex-direction:column}
+.live.on{display:flex}
+.live video{flex:1;width:100%;height:100%;object-fit:cover}
+.live .hud{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+.level{width:120px;height:120px;border-radius:50%;border:2px solid rgba(255,255,255,.7);position:relative}
+.level::after{content:"";position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:2px dashed rgba(255,255,255,.6)}
+.bubble{position:absolute;left:50%;top:50%;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:var(--warn);transition:transform .08s linear}
+.bubble.good{background:#3cc46f}
+.live .bar{position:absolute;left:0;right:0;bottom:0;padding:16px 16px calc(var(--safe-b) + 18px);display:flex;gap:12px;align-items:center;justify-content:space-between;
+  background:linear-gradient(transparent,rgba(0,0,0,.7))}
+.shutter{width:76px;height:76px;border-radius:50%;border:5px solid #fff;background:var(--jack);cursor:pointer}
+.live .hint{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);left:14px;right:14px;text-align:center;color:#fff;font-size:15px;
+  text-shadow:0 1px 3px #000}
+.live .bar .btn{min-width:96px}
+/* Ergebnis */
+.canvaswrap{position:relative;border-radius:var(--r);overflow:hidden;background:#000;touch-action:manipulation}
+.canvaswrap canvas{display:block;width:100%}
+.zoombtn{position:absolute;right:8px;bottom:8px;min-height:36px;padding:6px 12px;font-size:13px;background:rgba(251,247,238,.92)}
+.seg{display:flex;background:var(--sand-2);border-radius:12px;padding:3px;gap:3px;margin:10px 0}
+.seg button{flex:1;border:0;background:none;border-radius:9px;padding:9px 4px;font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.seg button.on{background:var(--paper);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+table.rank{width:100%;border-collapse:collapse}
+table.rank td{padding:10px 6px;border-bottom:1px solid var(--sand-2);vertical-align:middle}
+table.rank td.n{width:38px}
+table.rank td:last-child{white-space:nowrap}
+.badge{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-weight:700;font-size:14px;color:#fff;background:var(--ink)}
+.dist{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f6e1bf;color:#7a4b06;margin-left:6px}
+.note{border-left:4px solid var(--warn);background:#fff7e8;padding:10px 12px;border-radius:8px;font-size:14px;margin:10px 0}
+.spinner{display:flex;flex-direction:column;align-items:center;gap:12px;padding:30px 10px;text-align:center}
+.spinner i{width:34px;height:34px;border-radius:50%;border:4px solid var(--sand-2);border-top-color:var(--jack);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Spiel */
+.score{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.team{background:var(--paper);border-radius:var(--r);padding:14px 10px;text-align:center;border:3px solid transparent;cursor:pointer;user-select:none}
+.team.sel{border-color:var(--jack)}
+.team .name{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.team .pts{font-size:64px;font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
+.team.win{background:#e3f1e7}
+.picker{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px}
+.picker button{min-height:52px;border:0;border-radius:12px;background:var(--ink);color:var(--paper);font-size:20px;font-weight:700;cursor:pointer}
+.picker button:disabled{opacity:.25}
+.hist{list-style:none;margin:0;padding:0;font-size:15px}
+.hist li{display:flex;justify-content:space-between;padding:8px 2px;border-bottom:1px solid var(--sand-2)}
+label.f{display:block;margin:10px 0 4px;font-size:14px;font-weight:600}
+input.f,select.f,textarea.f{width:100%;padding:12px;border-radius:10px;border:1px solid var(--sand-2);background:#fff;min-height:46px}
+/* Regeln */
+details.rule{background:var(--paper);border-radius:var(--r);margin-bottom:8px;overflow:hidden}
+details.rule summary{list-style:none;padding:14px 16px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;gap:8px}
+details.rule summary::-webkit-details-marker{display:none}
+details.rule summary span{color:var(--ink-2);font-weight:400;font-size:13px;white-space:nowrap}
+details.rule dl{margin:0;padding:0 16px 12px}
+details.rule dt{font-weight:600;font-size:14px;margin-top:8px}
+details.rule dd{margin:2px 0 0;font-size:15px}
+.chat{display:flex;flex-direction:column;gap:8px;min-height:200px}
+.msg{max-width:88%;padding:10px 13px;border-radius:14px;white-space:pre-wrap;font-size:15px}
+.msg.u{align-self:flex-end;background:var(--ink);color:var(--paper);border-bottom-right-radius:4px}
+.msg.a{align-self:flex-start;background:var(--paper);border-bottom-left-radius:4px}
+.msg.err{background:#fde8e4;color:#8a2a17}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chips button{border:1px solid var(--sand-2);background:var(--paper);border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer}
+.composer{position:sticky;bottom:calc(var(--tabh) + var(--safe-b) + 6px);display:flex;gap:8px;margin-top:10px;background:var(--sand);padding:6px 0}
+.composer textarea{flex:1;resize:none;min-height:48px;max-height:120px}
+dialog{border:0;border-radius:var(--r);padding:0;width:min(520px,92vw);background:var(--paper);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog .in{padding:18px}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="dot"></span>Boule</h1>
+  <button class="iconbtn" id="btnSettings" aria-label="Einstellungen">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  </button>
+</header>
+
+<main>
+  <!-- MESSEN -->
+  <section class="tab active" id="tab-messen">
+    <div id="mIdle">
+      <div class="card">
+        <h2>Wer liegt am nächsten?</h2>
+        <p class="muted" style="margin:0 0 12px">Handy waagerecht über das Schweinchen halten, alle Kugeln ins Bild – die App zeigt die 6 nächsten Kugeln mit Abstand.</p>
+        <div class="row">
+          <button class="btn primary" id="btnCam">Kamera starten</button>
+          <label class="btn" for="filePick">Foto wählen</label>
+          <input type="file" id="filePick" accept="image/*" class="hide">
+        </div>
+      </div>
+      <div class="card">
+        <h2>Für genaue Ergebnisse</h2>
+        <ul class="tips">
+          <li>Etwa 1–1,5 m hoch, Handy waagerecht halten – wird die Libelle grün, löst die App automatisch aus.</li>
+          <li>Harten Sonnenschatten vermeiden – am besten selbst Schatten spenden.</li>
+          <li>Alle Kugeln vollständig im Bild, nichts verdeckt.</li>
+          <li>Kugeldurchmesser in den Einstellungen anpassen (Standard 73 mm).</li>
+          <li>Bei „knapp" lieber nachmessen. Im offiziellen Wettkampf gilt nur die Messung durch Spieler bzw. Schiedsrichter.</li>
+        </ul>
+      </div>
+    </div>
+    <div id="mBusy" class="card hide"><div class="spinner"><i></i><div id="busyText">Erkenne Kugeln …</div></div></div>
+    <div id="mResult" class="hide">
+      <div class="canvaswrap"><canvas id="cv"></canvas>
+        <button class="btn zoombtn" id="btnZoom">Nahansicht Platz 1–2</button></div>
+      <div class="seg" id="editSeg">
+        <button data-mode="view" class="on">Ansehen</button>
+        <button data-mode="add">+ Kugel</button>
+        <button data-mode="del">− Kugel</button>
+        <button data-mode="jack">Schweinchen</button>
+      </div>
+      <div id="modeHint" class="muted" style="margin:-4px 0 8px"></div>
+      <div id="resNotes"></div>
+      <div class="card" style="padding:6px 12px">
+        <table class="rank" id="rankTable"></table>
+      </div>
+      <div class="row"><button class="btn primary" id="btnAgain">Neu messen</button></div>
+    </div>
+  </section>
+
+  <!-- SPIEL -->
+  <section class="tab" id="tab-spiel">
+    <div id="gSetup" class="card">
+      <h2>Neues Spiel</h2>
+      <label class="f" for="gForm">Spielform</label>
+      <select class="f" id="gForm">
+        <option value="tete">Tête-à-tête (1 gg. 1, je 3 Kugeln)</option>
+        <option value="doublette" selected>Doublette (2 gg. 2, je 3 Kugeln)</option>
+        <option value="triplette">Triplette (3 gg. 3, je 2 Kugeln)</option>
+      </select>
+      <div class="row" style="gap:10px">
+        <div style="flex:1;min-width:140px"><label class="f" for="gA">Team A</label><input class="f" id="gA" value="Team A"></div>
+        <div style="flex:1;min-width:140px"><label class="f" for="gB">Team B</label><input class="f" id="gB" value="Team B"></div>
+      </div>
+      <label class="f" for="gTarget">Gespielt bis</label>
+      <select class="f" id="gTarget"><option value="13" selected>13 Punkte</option><option value="11">11 Punkte</option></select>
+      <div style="margin-top:14px"><button class="btn primary block" id="gStart">Spiel starten</button></div>
+    </div>
+    <div id="gPlay" class="hide">
+      <div class="score">
+        <div class="team" data-t="0"><div class="name" id="nA"></div><div class="pts" id="pA">0</div></div>
+        <div class="team" data-t="1"><div class="name" id="nB"></div><div class="pts" id="pB">0</div></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div id="pickHint" class="muted">Team antippen, das die Aufnahme gewonnen hat.</div>
+        <div class="picker hide" id="picker"></div>
+        <div id="winBox" class="hide" style="text-align:center">
+          <div style="font-size:22px;font-weight:800;margin:6px 0" id="winText"></div>
+          <div class="row"><button class="btn primary" id="gRematch">Revanche</button><button class="btn" id="gNew">Neues Spiel</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Aufnahmen</h2>
+          <div class="row" style="gap:6px"><button class="btn" id="gUndo" style="min-height:38px;padding:6px 12px">Rückgängig</button><button class="btn" id="gEnd" style="min-height:38px;padding:6px 12px">Beenden</button></div></div>
+        <ul class="hist" id="gHist"></ul>
+      </div>
+    </div>
+    <div class="card" id="gPastCard">
+      <h2>Letzte Spiele</h2>
+      <ul class="hist" id="gPast"></ul>
+    </div>
+  </section>
+
+  <!-- REGELN -->
+  <section class="tab" id="tab-regeln">
+    <div class="seg" id="ruleSeg"><button data-v="overview" class="on">Übersicht</button><button data-v="chat">Regel-Chat</button></div>
+    <div id="rOverview">
+      <p class="muted" id="ruleStand" style="margin:4px 2px 10px"></p>
+      <div id="ruleList"></div>
+    </div>
+    <div id="rChat" class="hide">
+      <div class="chat" id="chatLog"></div>
+      <div class="chips" id="chips"></div>
+      <div class="composer">
+        <textarea class="f" id="chatIn" rows="1" placeholder="Frage zu den Regeln …"></textarea>
+        <button class="btn accent" id="chatSend">Senden</button>
+      </div>
+      <div style="text-align:right"><button class="btn" id="chatClear" style="min-height:36px;padding:6px 12px;font-size:14px">Neuer Chat</button></div>
+    </div>
+  </section>
+
+  <!-- TRAINER -->
+  <section class="tab" id="tab-trainer">
+    <div class="card">
+      <h2>Trainer – in Planung</h2>
+      <p class="muted">Dieser Bereich ist vorbereitet. Mögliche Bausteine:</p>
+      <ul class="tips">
+        <li>Legen: Serien auf Ziel-Distanzen (6–10 m) mit Abstandsmessung per Kamera</li>
+        <li>Schießen: Trefferquote je Distanz, Präzisionsschießen als Wertung</li>
+        <li>Trainingsplan &amp; Verlauf je Spieler</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="messen" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="7" r="2.5"/><circle cx="17" cy="18" r="2.5"/></svg>Messen</button>
+  <button data-tab="spiel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M7 10v4M16 10h2v4h-2"/></svg>Spielstand</button>
+  <button data-tab="regeln"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M8 9h6M8 13h6"/></svg>Regeln</button>
+  <button data-tab="trainer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>Trainer</button>
+</nav>
+
+<!-- Kamera -->
+<div class="live" id="live">
+  <video id="video" playsinline muted autoplay></video>
+  <div class="hint" id="liveHint">Schweinchen in die Mitte, Libelle grün halten</div>
+  <div class="hud"><div class="level"><div class="bubble" id="bubble"></div></div></div>
+  <div class="bar">
+    <button class="btn" id="liveCancel">Abbrechen</button>
+    <button class="shutter" id="shutter" aria-label="Auslösen"></button>
+    <span style="min-width:96px;color:#fff;text-align:right;font-size:14px" id="tiltTxt"></span>
+  </div>
+</div>
+
+<dialog id="dlgSettings"><form method="dialog" class="in">
+  <h2 style="margin:0 0 6px">Einstellungen</h2>
+  <label class="f" for="sBall">Kugeldurchmesser (mm)</label>
+  <input class="f" id="sBall" type="number" min="65" max="80" step="0.5">
+  <label class="f" for="sJack">Schweinchen-Durchmesser (mm)</label>
+  <input class="f" id="sJack" type="number" min="25" max="35" step="0.5">
+  <label class="f" for="sTie">„Knapp"-Hinweis unter (cm)</label>
+  <input class="f" id="sTie" type="number" min="0" max="10" step="0.5">
+  <label class="f" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="sAuto" style="width:22px;height:22px"> Automatisch auslösen, wenn waagerecht</label>
+  <label class="f" for="sWorker">Adresse des Regel-Chat-Workers</label>
+  <input class="f" id="sWorker" type="url" placeholder="https://boule-chat.….workers.dev">
+  <div class="row" style="margin-top:16px"><button class="btn" value="cancel">Abbrechen</button><button class="btn primary" id="sSave" value="ok">Speichern</button></div>
+</form></dialog>
+
+<script src="rules.js"></script>
+<script src="detect.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
