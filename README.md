@@ -1,6 +1,6 @@
 # Boule-App (PWA) – Version 1
 
-Vier Reiter: **Messen** (Kamera → die 6 nächsten Kugeln mit Abstand), **Spielstand**, **Regeln** (Übersicht + Regel-Chat), **Trainer** (Platzhalter).
+Fünf Reiter: **Messen** (Kamera → die 6 nächsten Kugeln mit Abstand), **Spielstand**, **Spieler** (Liste, Statistik, Rangliste), **Regeln** (Übersicht + Regel-Chat), **Trainer** (Platzhalter).
 
 ## Dateien
 | Datei | Zweck |
@@ -8,6 +8,7 @@ Vier Reiter: **Messen** (Kamera → die 6 nächsten Kugeln mit Abstand), **Spiel
 | `index.html` | Oberfläche + Styles |
 | `app.js` | App-Logik (Kamera, Libelle, Auswertung, Spielstand, Chat) |
 | `detect.js` | Kugel- und Schweinchenerkennung (OpenCV.js) |
+| `stats.js` | Statistik (Siege, Partner/Gegner, Verlauf, Rangliste) |
 | `rules.js` | Regelübersicht (eigene Kurzfassung FIPJP, Stand Dez. 2020 – für 2026 unverändert) |
 | `sw.js`, `manifest.webmanifest`, `icon*.{svg,png}` | Offline-Fähigkeit, „Zum Home-Bildschirm“ |
 | `worker/boule-chat-worker.js` | Cloudflare Worker für den Regel-Chat (nicht nach GitHub Pages hochladen nötig) |
@@ -33,5 +34,11 @@ Vier Reiter: **Messen** (Kamera → die 6 nächsten Kugeln mit Abstand), **Spiel
 - Im offiziellen Wettkampf ist Handynutzung während des Spiels untersagt (Art. 39); es zählt die Messung durch Spieler/Schiedsrichter.
 - **Nächster Schritt:** mit echten Fotos vom Platz die Parameter in `detect.js` nachjustieren.
 
+## Spieler & Statistik (v2)
+- Spieler anlegen (Name, Kürzel, Lizenz-Nr., Kontakt, aktiv); beim Spielstart je Team aus der Liste wählen.
+- Statistik je Spieler: Siege/Niederlagen, Punkte, je Spielform, beste Partner, schwierigste Gegner (ab 2 gemeinsamen Spielen), Verlauf.
+- Rangliste nach Siegquote, dann Punktdifferenz; Mindestanzahl Spiele in ⚙️ (Standard 3).
+- Daten nur auf dem Handy → regelmäßig **Exportieren** (JSON). Import führt zusammen, überschreibt nichts.
+
 ## Ideen für später
-Spieler & Statistik, Turniermodus (Supermêlée), Trainer (Legen/Schießen mit Messung), Messung direkt in den Spielstand übernehmen.
+Turniermodus (Supermêlée), Trainer (Legen/Schießen mit Messung), Messung direkt in den Spielstand übernehmen.

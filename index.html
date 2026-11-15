@@ -27,7 +27,7 @@ header h1 .dot{width:12px;height:12px;border-radius:50%;background:var(--jack);d
 .iconbtn{background:none;border:0;color:inherit;padding:8px;border-radius:10px;cursor:pointer}
 main{padding:14px 14px calc(var(--tabh) + var(--safe-b) + 20px);max-width:720px;margin:0 auto}
 section.tab{display:none} section.tab.active{display:block}
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(4,1fr);
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(5,1fr);
   height:calc(var(--tabh) + var(--safe-b));padding-bottom:var(--safe-b);background:var(--paper);border-top:1px solid var(--sand-2)}
 nav.tabs button{border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   font-size:12px;color:var(--ink-2);cursor:pointer}
@@ -115,6 +115,30 @@ dialog{border:0;border-radius:var(--r);padding:0;width:min(520px,92vw);backgroun
 dialog::backdrop{background:rgba(0,0,0,.45)}
 dialog .in{padding:18px}
 .hide{display:none!important}
+.pchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pchip{display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:var(--paper);border-radius:999px;padding:6px 6px 6px 12px;font-size:14px}
+.pchip button{border:0;background:rgba(255,255,255,.2);color:inherit;width:22px;height:22px;border-radius:50%;cursor:pointer;line-height:1}
+.addp{border:1px dashed var(--ink-2);background:none;border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer}
+.plist{list-style:none;margin:0;padding:0}
+.plist li{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--sand-2);cursor:pointer}
+.plist li .av{width:36px;height:36px;border-radius:50%;background:var(--sand-2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
+.plist li .grow{flex:1;min-width:0}
+.plist li.sel .av{background:var(--jack);color:#fff}
+.plist li.off{opacity:.5}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--sand);border-radius:12px;padding:10px;text-align:center}
+.kpi b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--ink-2)}
+.wl{display:flex;gap:4px;flex-wrap:wrap}
+.wl i{width:22px;height:22px;border-radius:6px;font-style:normal;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;color:#fff}
+.wl i.w{background:var(--ok)} .wl i.l{background:#b44a35}
+table.st{width:100%;border-collapse:collapse;font-size:15px}
+table.st td,table.st th{padding:8px 4px;border-bottom:1px solid var(--sand-2);text-align:left}
+table.st th{font-size:12px;color:var(--ink-2);font-weight:600}
+table.st td.r,table.st th.r{text-align:right;font-variant-numeric:tabular-nums}
+.filters{display:flex;gap:8px;margin-bottom:10px}
+.filters select{flex:1}
+.x{border:0;background:none;color:var(--ink-2);font-size:18px;cursor:pointer;padding:0 4px}
 </style>
 </head>
 <body>
@@ -179,9 +203,12 @@ dialog .in{padding:18px}
         <option value="triplette">Triplette (3 gg. 3, je 2 Kugeln)</option>
       </select>
       <div class="row" style="gap:10px">
-        <div style="flex:1;min-width:140px"><label class="f" for="gA">Team A</label><input class="f" id="gA" value="Team A"></div>
-        <div style="flex:1;min-width:140px"><label class="f" for="gB">Team B</label><input class="f" id="gB" value="Team B"></div>
+        <div style="flex:1;min-width:150px"><label class="f" for="gA">Team A</label><input class="f" id="gA" value="Team A">
+          <div class="pchips" id="pcA"></div></div>
+        <div style="flex:1;min-width:150px"><label class="f" for="gB">Team B</label><input class="f" id="gB" value="Team B">
+          <div class="pchips" id="pcB"></div></div>
       </div>
+      <p class="muted" style="margin:8px 0 0;font-size:13px">Nur Spieler aus der Liste fließen in die Statistik ein. Der Teamname wird aus den Namen gebildet, du kannst ihn überschreiben.</p>
       <label class="f" for="gTarget">Gespielt bis</label>
       <select class="f" id="gTarget"><option value="13" selected>13 Punkte</option><option value="11">11 Punkte</option></select>
       <div style="margin-top:14px"><button class="btn primary block" id="gStart">Spiel starten</button></div>
@@ -208,6 +235,38 @@ dialog .in{padding:18px}
     <div class="card" id="gPastCard">
       <h2>Letzte Spiele</h2>
       <ul class="hist" id="gPast"></ul>
+    </div>
+  </section>
+
+  <!-- SPIELER -->
+  <section class="tab" id="tab-spieler">
+    <div id="plMain">
+      <div class="seg" id="plSeg"><button data-v="rank" class="on">Rangliste</button><button data-v="list">Spieler</button></div>
+      <div id="plRank">
+        <div class="filters">
+          <select class="f" id="rkForm"><option value="alle">Alle Spielformen</option><option value="tete">Tête-à-tête</option><option value="doublette">Doublette</option><option value="triplette">Triplette</option></select>
+          <select class="f" id="rkYear"></select>
+        </div>
+        <div class="card" style="padding:6px 12px"><table class="st" id="rkTable"></table></div>
+        <p class="muted" id="rkNote" style="margin:4px 2px"></p>
+      </div>
+      <div id="plList" class="hide">
+        <div class="row" style="margin-bottom:10px"><input class="f" id="plSearch" placeholder="Suchen …" style="flex:2"><button class="btn primary" id="plNew" style="flex:1">+ Spieler</button></div>
+        <div class="card" style="padding:4px 12px"><ul class="plist" id="plUl"></ul></div>
+        <div class="card">
+          <h2>Daten sichern</h2>
+          <p class="muted" style="margin:0 0 10px">Spieler und Spiele liegen nur auf diesem Handy. Regelmäßig exportieren – die Datei enthält personenbezogene Daten, bitte sorgsam aufbewahren.</p>
+          <div class="row"><button class="btn" id="btnExport">Exportieren</button><label class="btn" for="impFile">Importieren</label><input type="file" id="impFile" accept="application/json,.json" class="hide"></div>
+        </div>
+      </div>
+    </div>
+    <div id="plDetail" class="hide">
+      <div class="row" style="align-items:center;margin-bottom:10px"><button class="btn" id="pdBack" style="flex:0 0 auto">← Zurück</button><div style="flex:1;font-size:20px;font-weight:800" id="pdName"></div><button class="btn" id="pdEdit" style="flex:0 0 auto">Bearbeiten</button></div>
+      <div class="filters">
+        <select class="f" id="pdForm"><option value="alle">Alle Spielformen</option><option value="tete">Tête-à-tête</option><option value="doublette">Doublette</option><option value="triplette">Triplette</option></select>
+        <select class="f" id="pdYear"></select>
+      </div>
+      <div id="pdBody"></div>
     </div>
   </section>
 
@@ -246,6 +305,7 @@ dialog .in{padding:18px}
 <nav class="tabs" id="tabs">
   <button data-tab="messen" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="7" r="2.5"/><circle cx="17" cy="18" r="2.5"/></svg>Messen</button>
   <button data-tab="spiel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14M7 10v4M16 10h2v4h-2"/></svg>Spielstand</button>
+  <button data-tab="spieler"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2A5 5 0 0 1 21.5 19"/></svg>Spieler</button>
   <button data-tab="regeln"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M8 9h6M8 13h6"/></svg>Regeln</button>
   <button data-tab="trainer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>Trainer</button>
 </nav>
@@ -271,12 +331,35 @@ dialog .in{padding:18px}
   <label class="f" for="sTie">„Knapp"-Hinweis unter (cm)</label>
   <input class="f" id="sTie" type="number" min="0" max="10" step="0.5">
   <label class="f" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="sAuto" style="width:22px;height:22px"> Automatisch auslösen, wenn waagerecht</label>
+  <label class="f" for="sMin">Rangliste: Mindestanzahl Spiele</label>
+  <input class="f" id="sMin" type="number" min="1" max="50" step="1">
   <label class="f" for="sWorker">Adresse des Regel-Chat-Workers</label>
   <input class="f" id="sWorker" type="url" placeholder="https://boule-chat.….workers.dev">
   <div class="row" style="margin-top:16px"><button class="btn" value="cancel">Abbrechen</button><button class="btn primary" id="sSave" value="ok">Speichern</button></div>
 </form></dialog>
 
+<dialog id="dlgPlayer"><form method="dialog" class="in">
+  <h2 style="margin:0 0 6px" id="dpTitle">Spieler</h2>
+  <label class="f" for="dpName">Name *</label><input class="f" id="dpName" autocomplete="off">
+  <div class="row" style="gap:10px">
+    <div style="flex:1"><label class="f" for="dpShort">Kürzel</label><input class="f" id="dpShort" maxlength="4"></div>
+    <div style="flex:2"><label class="f" for="dpLic">Lizenz-Nr.</label><input class="f" id="dpLic"></div>
+  </div>
+  <label class="f" for="dpContact">Kontakt (Telefon / E-Mail)</label><input class="f" id="dpContact">
+  <label class="f" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="dpActive" style="width:22px;height:22px"> aktiv</label>
+  <div class="row" style="margin-top:16px"><button class="btn" value="cancel">Abbrechen</button><button class="btn primary" id="dpSave" value="ok">Speichern</button></div>
+  <button class="btn block" id="dpDelete" value="del" style="margin-top:10px;background:none;color:#b44a35">Spieler löschen</button>
+</form></dialog>
+
+<dialog id="dlgPick"><div class="in">
+  <h2 style="margin:0 0 6px" id="pkTitle">Spieler wählen</h2>
+  <input class="f" id="pkSearch" placeholder="Suchen …">
+  <ul class="plist" id="pkUl" style="max-height:50vh;overflow:auto;margin-top:8px"></ul>
+  <div class="row" style="margin-top:12px"><button class="btn" id="pkNew">+ Neu</button><button class="btn primary" id="pkDone">Fertig</button></div>
+</div></dialog>
+
 <script src="rules.js"></script>
+<script src="stats.js"></script>
 <script src="detect.js"></script>
 <script src="app.js"></script>
 </body>

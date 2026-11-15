@@ -3,11 +3,12 @@
   'use strict';
   const OPENCV_URL = 'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0-release.1/dist/opencv.js';
   const $ = id => document.getElementById(id);
+  let appReady = false; // wird am Ende gesetzt (Daten geladen)
   const LS = {
     get(k, d) { try { const v = localStorage.getItem('boule.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem('boule.' + k, JSON.stringify(v)); } catch { /* voll/privat */ } },
   };
-  const DEFAULTS = { ball: 73, jack: 30, tie: 1.5, auto: true, worker: 'https://boule-chat.rsab1963.workers.dev' };
+  const DEFAULTS = { ball: 73, jack: 30, tie: 1.5, auto: true, minGames: 3, worker: 'https://boule-chat.rsab1963.workers.dev' };
   let S = Object.assign({}, DEFAULTS, LS.get('settings', {}));
   const fmtCm = mm => (mm / 10).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' cm';
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -19,13 +20,13 @@
     document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + t));
     if (t !== 'messen') stopCamera();
     LS.set('tab', t);
+    if (t === 'spieler' && appReady) renderPlayers();
     window.scrollTo(0, 0);
   }
-  showTab(LS.get('tab', 'messen'));
 
   /* ---------- Einstellungen ---------- */
   $('btnSettings').addEventListener('click', () => {
-    $('sBall').value = S.ball; $('sJack').value = S.jack; $('sTie').value = S.tie; $('sWorker').value = S.worker; $('sAuto').checked = S.auto;
+    $('sBall').value = S.ball; $('sJack').value = S.jack; $('sTie').value = S.tie; $('sWorker').value = S.worker; $('sAuto').checked = S.auto; $('sMin').value = S.minGames;
     $('dlgSettings').showModal();
   });
   $('sSave').addEventListener('click', () => {
@@ -35,8 +36,10 @@
     S.tie = num($('sTie').value, S.tie, 0, 10);
     S.worker = $('sWorker').value.trim();
     S.auto = $('sAuto').checked;
+    S.minGames = Math.round(num($('sMin').value, S.minGames, 1, 50));
     LS.set('settings', S);
     if (M.balls) render();
+    if (appReady) renderPlayers();
   });
 
   /* ---------- OpenCV laden (einmalig, danach aus dem Cache) ---------- */
@@ -278,9 +281,27 @@
     M.src = null; M.balls = null;
   });
 
+  /* ---------- Daten: Spieler & Spiele (nur lokal) ---------- */
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  let players = LS.get('players', []);
+  let games = LS.get('games', null);
+  if (!games) { // Übernahme der bisherigen „Letzte Spiele“ (ohne Spielerzuordnung)
+    games = LS.get('past', []).map(p => ({ id: uid(), date: p.date, form: p.form, target: 13,
+      teams: [{ name: p.a, players: [] }, { name: p.b, players: [] }], score: [p.sa, p.sb] }));
+    LS.set('games', games);
+  }
+  const savePlayers = () => LS.set('players', players);
+  const saveGames = () => LS.set('games', games);
+  const pById = id => players.find(p => p.id === id);
+  const pName = id => (pById(id) || { name: '(gelöscht)' }).name;
+  const initials = p => (p.short || p.name.split(/\s+/).map(w => w[0]).join('').slice(0, 3)).toUpperCase();
+  const fmtDate = d => new Date(d).toLocaleDateString('de-DE');
+  const pct = (w, g) => g ? Math.round(100 * w / g) + ' %' : '–';
+
   /* ---------- Spielstand ---------- */
-  const FORMS = { tete: { label: 'Tête-à-tête', max: 3 }, doublette: { label: 'Doublette', max: 6 }, triplette: { label: 'Triplette', max: 6 } };
+  const FORMS = { tete: { label: 'Tête-à-tête', max: 3, size: 1 }, doublette: { label: 'Doublette', max: 6, size: 2 }, triplette: { label: 'Triplette', max: 6, size: 3 } };
   let G = LS.get('game', null);
+  if (G && !G.teams) G.teams = [{ name: G.a, players: [] }, { name: G.b, players: [] }];
   let pickTeam = null;
   const sum = (g, t) => g.ends.filter(e => e.t === t).reduce((a, e) => a + e.p, 0);
   function saveG() { LS.set('game', G); }
@@ -289,9 +310,9 @@
     $('gSetup').classList.toggle('hide', playing);
     $('gPlay').classList.toggle('hide', !playing);
     renderPast();
-    if (!playing) return;
+    if (!playing) { renderSetupChips(); return; }
     const a = sum(G, 0), b = sum(G, 1), winner = a >= G.target ? 0 : b >= G.target ? 1 : null;
-    $('nA').textContent = G.a; $('nB').textContent = G.b; $('pA').textContent = a; $('pB').textContent = b;
+    $('nA').textContent = G.teams[0].name; $('nB').textContent = G.teams[1].name; $('pA').textContent = a; $('pB').textContent = b;
     document.querySelectorAll('.team').forEach(el => {
       const t = +el.dataset.t;
       el.classList.toggle('sel', pickTeam === t && winner === null);
@@ -300,7 +321,7 @@
     $('winBox').classList.toggle('hide', winner === null);
     $('pickHint').classList.toggle('hide', winner !== null || pickTeam !== null);
     $('picker').classList.toggle('hide', winner !== null || pickTeam === null);
-    if (winner !== null) $('winText').textContent = `${winner ? G.b : G.a} gewinnt ${Math.max(a, b)}:${Math.min(a, b)}`;
+    if (winner !== null) $('winText').textContent = `${G.teams[winner].name} gewinnt ${Math.max(a, b)}:${Math.min(a, b)}`;
     if (pickTeam !== null && winner === null) {
       const max = FORMS[G.form].max;
       $('picker').innerHTML = Array.from({ length: 6 }, (_, i) => `<button data-p="${i + 1}" ${i + 1 > max ? 'disabled' : ''}>${i + 1}</button>`).join('');
@@ -308,16 +329,73 @@
     let ra = 0, rb = 0;
     $('gHist').innerHTML = G.ends.map((e, i) => {
       if (e.t === 0) ra += e.p; else rb += e.p;
-      return `<li><span>${i + 1}. ${esc(e.t ? G.b : G.a)} +${e.p}</span><b>${ra}:${rb}</b></li>`;
+      return `<li><span>${i + 1}. ${esc(G.teams[e.t].name)} +${e.p}</span><b>${ra}:${rb}</b></li>`;
     }).reverse().join('') || '<li class="muted">Noch keine Aufnahme.</li>';
   }
+  const gameLi = g => `<li><span>${esc(g.teams[0].name)} – ${esc(g.teams[1].name)} <span class="muted">· ${esc(FORMS[g.form]?.label || '')} · ${fmtDate(g.date)}</span></span>
+      <span style="white-space:nowrap;margin-left:10px"><b>${g.score[0]}:${g.score[1]}</b><button class="x" data-del="${g.id}" aria-label="Spiel löschen">×</button></span></li>`;
   function renderPast() {
-    const past = LS.get('past', []);
-    $('gPastCard').classList.toggle('hide', !past.length || !!G);
-    $('gPast').innerHTML = past.slice(0, 10).map(p => `<li><span>${esc(p.a)} – ${esc(p.b)} <span class="muted">· ${esc(FORMS[p.form]?.label || '')} · ${new Date(p.date).toLocaleDateString('de-DE')}</span></span><b>${p.sa}:${p.sb}</b></li>`).join('');
+    const list = [...games].sort((a, b) => b.date - a.date);
+    $('gPastCard').classList.toggle('hide', !list.length || !!G);
+    $('gPast').innerHTML = list.slice(0, 10).map(gameLi).join('');
   }
+  document.addEventListener('click', e => { // Spiel löschen (Liste oder Spielerdetail)
+    const id = e.target.dataset && e.target.dataset.del; if (!id) return;
+    const g = games.find(x => x.id === id); if (!g) return;
+    if (!confirm(`Spiel ${g.teams[0].name} – ${g.teams[1].name} (${g.score[0]}:${g.score[1]}) löschen?`)) return;
+    games = games.filter(x => x.id !== id); saveGames(); renderPast(); renderPlayers();
+  });
+
+  // Spielerauswahl beim Spielstart
+  const setup = { sel: [[], []], named: [false, false] };
+  const nameInputs = [$('gA'), $('gB')];
+  nameInputs.forEach((inp, t) => inp.addEventListener('input', () => { setup.named[t] = inp.value.trim() !== ''; }));
+  function teamSize() { return FORMS[$('gForm').value].size; }
+  function renderSetupChips() {
+    const size = teamSize();
+    setup.sel = setup.sel.map(s => s.filter(pById).slice(0, size));
+    ['pcA', 'pcB'].forEach((id, t) => {
+      const sel = setup.sel[t];
+      $(id).innerHTML = sel.map(pid => `<span class="pchip">${esc(pName(pid))}<button data-rm="${t}:${pid}" aria-label="entfernen">×</button></span>`).join('') +
+        (sel.length < size ? `<button class="addp" data-add="${t}">+ Spieler (${sel.length}/${size})</button>` : '');
+      if (!setup.named[t]) nameInputs[t].value = sel.length ? sel.map(pName).join(' & ') : (t ? 'Team B' : 'Team A');
+    });
+  }
+  $('gForm').addEventListener('change', renderSetupChips);
+  $('gSetup').addEventListener('click', e => {
+    const d = e.target.dataset || {};
+    if (d.rm) { const [t, pid] = d.rm.split(':'); setup.sel[+t] = setup.sel[+t].filter(x => x !== pid); renderSetupChips(); }
+    if (d.add) openPicker(+d.add);
+  });
+  let pickFor = 0;
+  function openPicker(t) {
+    pickFor = t; $('pkSearch').value = '';
+    $('pkTitle').textContent = `Spieler für Team ${t ? 'B' : 'A'} (max. ${teamSize()})`;
+    renderPicker(); $('dlgPick').showModal();
+  }
+  function renderPicker() {
+    const q = $('pkSearch').value.trim().toLowerCase(), other = setup.sel[1 - pickFor], mine = setup.sel[pickFor];
+    const list = players.filter(p => p.active !== false && (!q || p.name.toLowerCase().includes(q))).sort((a, b) => a.name.localeCompare(b.name, 'de'));
+    $('pkUl').innerHTML = list.map(p => `<li data-pid="${p.id}" class="${mine.includes(p.id) ? 'sel' : ''} ${other.includes(p.id) ? 'off' : ''}">
+      <span class="av">${esc(initials(p))}</span><span class="grow">${esc(p.name)}</span>${other.includes(p.id) ? '<span class="muted">anderes Team</span>' : ''}</li>`).join('')
+      || '<li class="muted" style="cursor:default">Noch keine Spieler – mit „+ Neu“ anlegen.</li>';
+  }
+  $('pkSearch').addEventListener('input', renderPicker);
+  $('pkUl').addEventListener('click', e => {
+    const li = e.target.closest('li[data-pid]'); if (!li || li.classList.contains('off')) return;
+    const pid = li.dataset.pid, mine = setup.sel[pickFor];
+    if (mine.includes(pid)) setup.sel[pickFor] = mine.filter(x => x !== pid);
+    else if (mine.length < teamSize()) mine.push(pid);
+    else if (navigator.vibrate) navigator.vibrate(60);
+    renderPicker(); renderSetupChips();
+    if (setup.sel[pickFor].length >= teamSize()) setTimeout(() => $('dlgPick').close(), 150);
+  });
+  $('pkDone').addEventListener('click', () => $('dlgPick').close());
+  $('pkNew').addEventListener('click', () => openPlayerDlg(null, p => { if (setup.sel[pickFor].length < teamSize()) setup.sel[pickFor].push(p.id); renderPicker(); renderSetupChips(); }));
+
   $('gStart').addEventListener('click', () => {
-    G = { form: $('gForm').value, a: $('gA').value.trim() || 'Team A', b: $('gB').value.trim() || 'Team B', target: +$('gTarget').value, ends: [], date: Date.now() };
+    const teams = [0, 1].map(t => ({ name: nameInputs[t].value.trim() || (t ? 'Team B' : 'Team A'), players: [...setup.sel[t]] }));
+    G = { id: uid(), form: $('gForm').value, target: +$('gTarget').value, teams, ends: [], date: Date.now() };
     pickTeam = null; saveG(); renderGame();
   });
   document.querySelectorAll('.team').forEach(el => el.addEventListener('click', () => {
@@ -333,13 +411,12 @@
     if (navigator.vibrate) navigator.vibrate(30);
   });
   function archive() {
-    const past = LS.get('past', []);
-    past.unshift({ date: Date.now(), form: G.form, a: G.a, b: G.b, sa: sum(G, 0), sb: sum(G, 1) });
-    LS.set('past', past.slice(0, 50)); G.archived = true; saveG();
+    games.push({ id: G.id, date: Date.now(), form: G.form, target: G.target, teams: G.teams, score: [sum(G, 0), sum(G, 1)], ends: G.ends });
+    saveGames(); G.archived = true; saveG();
   }
   $('gUndo').addEventListener('click', () => {
     if (!G || !G.ends.length) return;
-    if (G.archived) { const past = LS.get('past', []); past.shift(); LS.set('past', past); G.archived = false; }
+    if (G.archived) { games = games.filter(x => x.id !== G.id); saveGames(); G.archived = false; }
     G.ends.pop(); pickTeam = null; saveG(); renderGame();
   });
   $('gEnd').addEventListener('click', () => {
@@ -347,9 +424,158 @@
     if (!G.archived && G.ends.length && !confirm('Spiel ohne Sieger beenden? Es wird nicht gespeichert.')) return;
     G = null; saveG(); renderGame();
   });
-  $('gRematch').addEventListener('click', () => { G = { ...G, ends: [], archived: false, date: Date.now() }; saveG(); renderGame(); });
-  $('gNew').addEventListener('click', () => { if (G) { $('gForm').value = G.form; $('gA').value = G.a; $('gB').value = G.b; } G = null; saveG(); renderGame(); });
+  $('gRematch').addEventListener('click', () => { G = { ...G, id: uid(), ends: [], archived: false, date: Date.now() }; saveG(); renderGame(); });
+  $('gNew').addEventListener('click', () => {
+    if (G) {
+      $('gForm').value = G.form;
+      setup.sel = G.teams.map(t => t.players.filter(pById));
+      setup.named = G.teams.map(t => !t.players.length);
+      G.teams.forEach((t, i) => { if (!t.players.length) nameInputs[i].value = t.name; });
+    }
+    G = null; saveG(); renderGame();
+  });
   renderGame();
+
+  /* ---------- Spieler & Statistik ---------- */
+  function yearOptions(sel) {
+    const ys = [...new Set(games.map(g => new Date(g.date).getFullYear()))].sort((a, b) => b - a);
+    sel.innerHTML = '<option value="alle">Alle Jahre</option>' + ys.map(y => `<option>${y}</option>`).join('');
+  }
+  document.querySelectorAll('#plSeg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#plSeg button').forEach(x => x.classList.toggle('on', x === b));
+    $('plRank').classList.toggle('hide', b.dataset.v !== 'rank');
+    $('plList').classList.toggle('hide', b.dataset.v !== 'list');
+  }));
+  let detailId = null;
+  function renderPlayers() {
+    // Rangliste
+    const keepY = $('rkYear').value; yearOptions($('rkYear')); if (keepY) $('rkYear').value = keepY;
+    const f = { form: $('rkForm').value, year: $('rkYear').value || 'alle' };
+    const rk = BouleStats.ranking(games, players, f, S.minGames);
+    let divider = false;
+    $('rkTable').innerHTML = rk.length ? '<tr><th>#</th><th>Spieler</th><th class="r">Sp.</th><th class="r">S–N</th><th class="r">Quote</th><th class="r">Diff</th></tr>' +
+      rk.map((r, i) => {
+        let pre = '';
+        if (!r.ok && !divider) { divider = true; pre = `<tr><td colspan="6" class="muted" style="font-size:13px">unter ${S.minGames} Spielen</td></tr>`; }
+        return pre + `<tr data-open="${r.p.id}" style="cursor:pointer;${r.ok ? '' : 'opacity:.6'}"><td>${r.ok ? i + 1 : ''}</td><td>${esc(r.p.name)}</td>
+          <td class="r">${r.s.g}</td><td class="r">${r.s.w}–${r.s.g - r.s.w}</td><td class="r"><b>${pct(r.s.w, r.s.g)}</b></td><td class="r">${r.diff > 0 ? '+' : ''}${r.diff}</td></tr>`;
+      }).join('') : '<tr><td class="muted">Noch keine Spiele mit Spielern aus der Liste.</td></tr>';
+    $('rkNote').textContent = `Sortiert nach Siegquote, bei Gleichstand nach Punktdifferenz. Mindestens ${S.minGames} Spiele für einen Rang (⚙️).`;
+    // Liste
+    const q = $('plSearch').value.trim().toLowerCase();
+    const list = players.filter(p => !q || p.name.toLowerCase().includes(q)).sort((a, b) => (b.active !== false) - (a.active !== false) || a.name.localeCompare(b.name, 'de'));
+    $('plUl').innerHTML = list.map(p => {
+      const s = BouleStats.playerStats(games, p.id);
+      return `<li data-open="${p.id}" class="${p.active === false ? 'off' : ''}"><span class="av">${esc(initials(p))}</span>
+        <span class="grow"><b>${esc(p.name)}</b><br><span class="muted">${s.g} Spiele · ${pct(s.w, s.g)}${p.active === false ? ' · inaktiv' : ''}</span></span>›</li>`;
+    }).join('') || '<li class="muted" style="cursor:default">Noch keine Spieler. Mit „+ Spieler“ anlegen.</li>';
+    if (detailId) renderDetail();
+  }
+  ['rkForm', 'rkYear'].forEach(id => $(id).addEventListener('change', renderPlayers));
+  $('plSearch').addEventListener('input', renderPlayers);
+  $('tab-spieler').addEventListener('click', e => {
+    const row = e.target.closest('[data-open]'); if (!row || e.target.dataset.del) return;
+    detailId = row.dataset.open; yearOptions($('pdYear')); $('pdForm').value = 'alle';
+    $('plMain').classList.add('hide'); $('plDetail').classList.remove('hide'); renderDetail(); window.scrollTo(0, 0);
+  });
+  $('pdBack').addEventListener('click', () => { detailId = null; $('plDetail').classList.add('hide'); $('plMain').classList.remove('hide'); });
+  ['pdForm', 'pdYear'].forEach(id => $(id).addEventListener('change', renderDetail));
+  $('pdEdit').addEventListener('click', () => openPlayerDlg(pById(detailId), () => renderPlayers()));
+
+  function sparkline(seq) {
+    if (seq.length < 2) return '';
+    const W = 300, H = 70; let w = 0;
+    const pts = seq.map((s, i) => { if (s.won) w++; return [i / (seq.length - 1) * W, H - (w / (i + 1)) * H]; });
+    return `<svg viewBox="-4 -4 ${W + 8} ${H + 8}" style="width:100%;height:80px"><line x1="0" x2="${W}" y1="${H / 2}" y2="${H / 2}" stroke="#d8cbb0" stroke-dasharray="4 4"/>
+      <polyline fill="none" stroke="#2c5d8a" stroke-width="2.5" stroke-linejoin="round" points="${pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}"/></svg>
+      <div class="muted" style="font-size:12px;display:flex;justify-content:space-between"><span>Siegquote im Verlauf</span><span>50 %-Linie gestrichelt</span></div>`;
+  }
+  function renderDetail() {
+    const p = pById(detailId); if (!p) { $('pdBack').click(); return; }
+    $('pdName').textContent = p.name + (p.active === false ? ' (inaktiv)' : '');
+    const f = { form: $('pdForm').value, year: $('pdYear').value || 'alle' };
+    const s = BouleStats.playerStats(games, p.id, f);
+    const diff = s.pf - s.pa;
+    const formRows = Object.keys(FORMS).filter(k => s.byForm[k]).map(k => { const o = s.byForm[k];
+      return `<tr><td>${FORMS[k].label}</td><td class="r">${o.g}</td><td class="r">${o.w}–${o.g - o.w}</td><td class="r"><b>${pct(o.w, o.g)}</b></td><td class="r">${o.pf - o.pa > 0 ? '+' : ''}${o.pf - o.pa}</td></tr>`; }).join('');
+    const rel = (arr, empty) => arr.slice(0, 3).map(o => `<tr><td>${esc(pName(o.id))}</td><td class="r">${o.g}</td><td class="r">${o.w}–${o.g - o.w}</td><td class="r"><b>${pct(o.w, o.g)}</b></td></tr>`).join('') || `<tr><td class="muted" colspan="4">${empty}</td></tr>`;
+    const partners = BouleStats.topList(s.partners, 2, true), opps = BouleStats.topList(s.opponents, 2, false);
+    const recentIds = s.seq.slice(-10).reverse().map(x => x.id);
+    const recent = recentIds.map(id => games.find(g => g.id === id)).filter(Boolean);
+    const hdr4 = '<tr><th>Name</th><th class="r">Sp.</th><th class="r">S–N</th><th class="r">Quote</th></tr>';
+    $('pdBody').innerHTML = s.g ? `
+      <div class="card"><div class="kpis">
+        <div class="kpi"><b>${s.g}</b><span>Spiele</span></div>
+        <div class="kpi"><b>${s.w}–${s.g - s.w}</b><span>Siege–Niederl.</span></div>
+        <div class="kpi"><b>${pct(s.w, s.g)}</b><span>Siegquote</span></div>
+        <div class="kpi"><b>${s.pf}</b><span>Punkte erzielt</span></div>
+        <div class="kpi"><b>${s.pa}</b><span>Punkte kassiert</span></div>
+        <div class="kpi"><b>${diff > 0 ? '+' : ''}${diff}</b><span>Differenz</span></div>
+      </div></div>
+      <div class="card"><h2>Verlauf</h2><div class="wl">${s.seq.slice(-15).map(x => `<i class="${x.won ? 'w' : 'l'}">${x.won ? 'S' : 'N'}</i>`).join('')}</div>
+        <div class="muted" style="font-size:12px;margin:4px 0 8px">letzte ${Math.min(15, s.seq.length)} Spiele, neuestes rechts</div>${sparkline(s.seq)}</div>
+      <div class="card"><h2>Je Spielform</h2><table class="st"><tr><th>Form</th><th class="r">Sp.</th><th class="r">S–N</th><th class="r">Quote</th><th class="r">Diff</th></tr>${formRows}</table></div>
+      <div class="card"><h2>Beste Partner</h2><table class="st">${hdr4}${rel(partners, 'Erst ab 2 gemeinsamen Spielen.')}</table></div>
+      <div class="card"><h2>Schwierigste Gegner</h2><table class="st">${hdr4}${rel(opps, 'Erst ab 2 Spielen gegeneinander.')}</table></div>
+      <div class="card"><h2>Letzte Spiele</h2><ul class="hist">${recent.map(gameLi).join('')}</ul></div>`
+      : '<div class="card muted">Noch keine Spiele in dieser Auswahl.</div>';
+  }
+
+  // Spieler anlegen / bearbeiten
+  let dlgCb = null, dlgP = null;
+  function openPlayerDlg(p, cb) {
+    dlgP = p; dlgCb = cb;
+    $('dpTitle').textContent = p ? 'Spieler bearbeiten' : 'Neuer Spieler';
+    $('dpName').value = p ? p.name : ''; $('dpShort').value = p ? p.short || '' : '';
+    $('dpLic').value = p ? p.licence || '' : ''; $('dpContact').value = p ? p.contact || '' : '';
+    $('dpActive').checked = p ? p.active !== false : true;
+    $('dpDelete').classList.toggle('hide', !p);
+    $('dlgPlayer').showModal(); setTimeout(() => $('dpName').focus(), 50);
+  }
+  $('plNew').addEventListener('click', () => openPlayerDlg(null, () => renderPlayers()));
+  $('dpSave').addEventListener('click', e => {
+    const name = $('dpName').value.trim();
+    if (!name) { e.preventDefault(); $('dpName').focus(); return; }
+    if (players.some(x => x.name.toLowerCase() === name.toLowerCase() && x !== dlgP) && !confirm(`„${name}“ gibt es schon. Trotzdem speichern?`)) { e.preventDefault(); return; }
+    const data = { name, short: $('dpShort').value.trim(), licence: $('dpLic').value.trim(), contact: $('dpContact').value.trim(), active: $('dpActive').checked };
+    let p = dlgP;
+    if (p) Object.assign(p, data); else { p = { id: uid(), created: Date.now(), ...data }; players.push(p); }
+    savePlayers(); if (dlgCb) dlgCb(p);
+  });
+  $('dpDelete').addEventListener('click', e => {
+    const p = dlgP; if (!p) return;
+    const n = games.filter(g => g.teams.some(t => t.players.includes(p.id))).length;
+    if (!confirm(n ? `${p.name} hat ${n} Spiele. Löschen entfernt den Namen aus der Statistik (Spiele bleiben als „gelöscht“). Tipp: stattdessen „aktiv“ abwählen. Wirklich löschen?` : `${p.name} löschen?`)) { e.preventDefault(); return; }
+    players = players.filter(x => x !== p); savePlayers();
+    if (detailId === p.id) $('pdBack').click();
+    renderPlayers(); renderSetupChips();
+  });
+
+  // Export / Import
+  $('btnExport').addEventListener('click', () => {
+    const data = { app: 'boule', version: 1, exported: new Date().toISOString(), players, games };
+    const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `boule-daten-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+  $('impFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (d.app !== 'boule' || !Array.isArray(d.players) || !Array.isArray(d.games)) throw new Error('Keine Boule-Datei');
+      // Zusammenführen über die IDs – vorhandene Daten gehen nicht verloren
+      const pIds = new Set(players.map(p => p.id)), gIds = new Set(games.map(g => g.id));
+      const np = d.players.filter(p => p && p.id && p.name && !pIds.has(p.id));
+      const ng = d.games.filter(g => g && g.id && g.teams && g.score && !gIds.has(g.id));
+      players = players.concat(np); games = games.concat(ng); savePlayers(); saveGames();
+      alert(`Import fertig: ${np.length} neue Spieler, ${ng.length} neue Spiele (bereits vorhandene wurden übersprungen).`);
+      renderPlayers(); renderPast();
+    } catch (err) { alert('Import fehlgeschlagen: ' + err.message); }
+  });
+  appReady = true;
+  renderPlayers();
+  showTab(LS.get('tab', 'messen')); // erst jetzt: alle Variablen sind initialisiert
 
   /* ---------- Regeln: Übersicht ---------- */
   const R = window.BOULE_RULES;
