@@ -1,5 +1,5 @@
 /* Service Worker: App offline verfügbar, OpenCV nach erstem Laden aus dem Cache */
-const VERSION = 'boule-v3';
+const VERSION = 'boule-v4';
 const SHELL = ['./', 'index.html', 'app.js', 'detect.js', 'rules.js', 'stats.js', 'trainer.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

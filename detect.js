@@ -227,6 +227,45 @@
     }).sort((a, b) => a.mm - b.mm);
   }
 
-  const api = { setKS: f => { KS = f; }, detectBoules, detectAuto, findNear, rank, median };
+  /* Höhen- und Neigungskorrektur (Lochkamera-Modell)
+   * Kugel- und Schweinchenmitten liegen unterschiedlich hoch über dem Boden (36,5 vs. 15 mm). Von oben
+   * gesehen erscheinen höhere Punkte weiter vom Bildmittelpunkt entfernt (Parallaxe). Wir rechnen jede
+   * Bildposition auf ihre echte Lage zurück:
+   *  - Brennweite in Pixeln aus der Kleinbild-Äquivalenz (Standard 26 mm) über die Bilddiagonale
+   *  - Kameraabstand aus der scheinbaren Kugelgröße (Median über alle Kugeln)
+   *  - Neigung aus dem Lagesensor (beta/gamma in Grad, Hochformat), falls vorhanden
+   * opts: { W, H, focal35, ballD, jackD, beta, gamma }
+   */
+  function rank3D(balls, jack, o) {
+    if (!jack || !balls.length) return { ranked: [], info: null };
+    const f = o.focal35 * Math.hypot(o.W, o.H) / 43.27, cx = o.W / 2, cy = o.H / 2;
+    const rad = Math.PI / 180, b = (o.beta || 0) * rad, g = (o.gamma || 0) * rad;
+    // Gerät → Welt: R = Rx(beta) · Ry(gamma); Welt-z zeigt nach oben, Rückkamera blickt entlang −z des Geräts
+    const cb = Math.cos(b), sb = Math.sin(b), cg = Math.cos(g), sg = Math.sin(g);
+    const rot = ([x, y, z]) => {
+      const x1 = cg * x + sg * z, z1 = -sg * x + cg * z;      // Ry(gamma)
+      return [x1, cb * y - sb * z1, sb * y + cb * z1];        // Rx(beta)
+    };
+    const ray = (u, v) => rot([(u - cx) / f, -(v - cy) / f, -1]);
+    const RB = o.ballD / 2, RJ = o.jackD / 2;
+    // Kameraabstand über jede Kugel: Entfernung zur Mitte ≈ R · f_lokal / r_px; senkrechter Anteil + R = Höhe
+    const hs = balls.map(k => {
+      const d = ray(k.x, k.y), n = Math.hypot(...d);
+      const fl = Math.hypot(f, k.x - cx, k.y - cy);
+      const rho = RB * fl / k.r;
+      return rho * (-d[2] / n) + RB;
+    });
+    const Hc = median(hs);
+    const ground = (u, v, h) => { const d = ray(u, v), t = (Hc - h) / -d[2]; return [d[0] * t, d[1] * t]; };
+    const J = ground(jack.x, jack.y, RJ);
+    const ranked = balls.map((k, i) => {
+      const P = ground(k.x, k.y, RB);
+      const mm = Math.hypot(P[0] - J[0], P[1] - J[1]) - RB - RJ;
+      return { i, mm: Math.max(0, mm), x: k.x, y: k.y, r: k.r };
+    }).sort((a, c) => a.mm - c.mm);
+    return { ranked, info: { heightMm: Hc, tilt: Math.hypot(o.beta || 0, o.gamma || 0), focalPx: f } };
+  }
+
+  const api = { setKS: f => { KS = f; }, detectBoules, detectAuto, findNear, rank, rank3D, median };
   if (typeof module !== 'undefined') module.exports = api; else root.BouleDetect = api;
 })(typeof window !== 'undefined' ? window : globalThis);

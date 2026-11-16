@@ -25,6 +25,7 @@ Fünf Reiter: **Messen** (Kamera → die 6 nächsten Kugeln mit Abstand), **Spie
 - Libelle über den Lagesensor; ist das Handy ~1 s waagerecht (< 2,5°), wird automatisch ausgelöst (abschaltbar).
 - Erkennung: Kreise (Hough) auf mehreren Glättungsstufen, jede Kandidatin wird an der Randkante geprüft; Schweinchen zuerst über Farbe, sonst über Form.
 - Maßstab über den bekannten Kugeldurchmesser (⚙️, Standard 73 mm). Abstand = Kante zu Kante.
+- **Höhen- und Neigungskorrektur (v4):** Kamerahöhe aus der Kugelgröße, Neigung aus dem Lagesensor (nur Hochformat, ≤ 15°); jede Position wird auf ihre Bodenlage zurückgerechnet (Kugelmitte 36,5 mm, Schweinchenmitte 15 mm hoch). Brennweite (KB-äquiv., Standard 26 mm) in ⚙️. Bei Fotos aus der Galerie nur Höhenkorrektur.
 - Korrektur: „+ Kugel“, „− Kugel“, „Schweinchen“ antippen; „Nahansicht“ zoomt auf Schweinchen + Platz 1–2.
 - Beim ersten Messen werden ca. 10 MB OpenCV geladen, danach aus dem Cache (offline).
 

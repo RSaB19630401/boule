@@ -8,7 +8,7 @@
     get(k, d) { try { const v = localStorage.getItem('boule.' + k); return v ? JSON.parse(v) : d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem('boule.' + k, JSON.stringify(v)); } catch { /* voll/privat */ } },
   };
-  const DEFAULTS = { ball: 73, jack: 30, tie: 1.5, auto: true, minGames: 3, worker: 'https://boule-chat.rsab1963.workers.dev' };
+  const DEFAULTS = { ball: 73, jack: 30, tie: 1.5, auto: true, minGames: 3, corr: true, focal: 26, worker: 'https://boule-chat.rsab1963.workers.dev' };
   let S = Object.assign({}, DEFAULTS, LS.get('settings', {}));
   const fmtCm = mm => (mm / 10).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' cm';
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -27,7 +27,7 @@
 
   /* ---------- Einstellungen ---------- */
   $('btnSettings').addEventListener('click', () => {
-    $('sBall').value = S.ball; $('sJack').value = S.jack; $('sTie').value = S.tie; $('sWorker').value = S.worker; $('sAuto').checked = S.auto; $('sMin').value = S.minGames;
+    $('sBall').value = S.ball; $('sJack').value = S.jack; $('sTie').value = S.tie; $('sWorker').value = S.worker; $('sAuto').checked = S.auto; $('sMin').value = S.minGames; $('sCorr').checked = S.corr; $('sFocal').value = S.focal;
     $('dlgSettings').showModal();
   });
   $('sSave').addEventListener('click', () => {
@@ -37,6 +37,8 @@
     S.tie = num($('sTie').value, S.tie, 0, 10);
     S.worker = $('sWorker').value.trim();
     S.auto = $('sAuto').checked;
+    S.corr = $('sCorr').checked;
+    S.focal = num($('sFocal').value, S.focal, 13, 80);
     S.minGames = Math.round(num($('sMin').value, S.minGames, 1, 50));
     LS.set('settings', S);
     if (M.balls) render();
@@ -67,12 +69,12 @@
   }
 
   /* ---------- Kamera + Libelle ---------- */
-  let stream = null, tilt = null, levelSince = 0, shooting = false;
+  let stream = null, tilt = null, ori = null, levelSince = 0, shooting = false;
   function onOrient(e) {
     if (e.beta == null) return;
     // Handy flach (Display oben, Kamera zum Boden): beta ≈ 0, gamma ≈ 0
     const b = e.beta, g = e.gamma;
-    tilt = Math.sqrt(b * b + g * g);
+    tilt = Math.sqrt(b * b + g * g); ori = { beta: b, gamma: g };
     const k = 2.2, cx = Math.max(-48, Math.min(48, g * k)), cy = Math.max(-48, Math.min(48, b * k));
     const bub = $('bubble');
     bub.style.transform = `translate(${cx}px,${cy}px)`;
@@ -119,7 +121,10 @@
   async function shoot() {
     if (shooting) return; shooting = true;
     if (navigator.vibrate) navigator.vibrate(40);
-    const v = $('video'); const capturedTilt = tilt;
+    const v = $('video');
+    // Neigung nur verwenden, wenn im Hochformat aufgenommen wird (Sensorachsen = Bildachsen)
+    const portrait = !screen.orientation || String(screen.orientation.type).startsWith('portrait');
+    const capturedTilt = tilt, capturedOri = ori && portrait ? { ...ori } : null;
     let bmp = null;
     try { // volle Fotoauflösung, wo unterstützt (Android/Chrome)
       if ('ImageCapture' in window && stream) {
@@ -131,7 +136,7 @@
     if (bmp) { c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0); }
     else { c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0); }
     stopCamera();
-    analyse(c, capturedTilt);
+    analyse(c, capturedTilt, capturedOri);
   }
   $('filePick').addEventListener('change', e => {
     const f = e.target.files[0]; if (!f) return;
@@ -155,7 +160,7 @@
   }
   document.addEventListener('click', e => { if (e.target.id === 'pendCancel') { M.pending = null; setMView('mIdle'); showTab('trainer'); } });
 
-  async function analyse(canvas, capturedTilt) {
+  async function analyse(canvas, capturedTilt, capturedOri) {
     // Größe begrenzen (Speicher/Tempo); Erkennung skaliert intern weiter
     const MAX = 3000, L = Math.max(canvas.width, canvas.height);
     if (L > MAX) {
@@ -173,7 +178,7 @@
     try {
       M.mat = cv.imread(canvas);
       const r = BouleDetect.detectAuto(cv, M.mat);
-      Object.assign(M, { src: canvas, balls: r.balls, jack: r.jack, ballR: r.ballR, tilt: capturedTilt, mode: 'view', zoom: false });
+      Object.assign(M, { src: canvas, balls: r.balls, jack: r.jack, ballR: r.ballR, tilt: capturedTilt, ori: capturedOri || null, mode: 'view', zoom: false });
     } catch (e) {
       console.error(e); alert('Bilderkennung fehlgeschlagen.'); setMView('mIdle'); return;
     }
@@ -182,12 +187,23 @@
     render();
   }
 
+  // Rangliste mit Höhen-/Neigungskorrektur (falls aktiv und plausibel), sonst einfache Maßstabsrechnung
+  function ranking() {
+    if (S.corr && M.jack && M.balls.length) {
+      let o = M.ori;
+      if (o && (Math.abs(o.beta) > 15 || Math.abs(o.gamma) > 15 || M.src.height < M.src.width)) o = null;
+      const r = BouleDetect.rank3D(M.balls, M.jack, { W: M.src.width, H: M.src.height, focal35: S.focal, ballD: S.ball, jackD: S.jack, beta: o ? o.beta : 0, gamma: o ? o.gamma : 0 });
+      if (r.info && r.info.heightMm > 250 && r.info.heightMm < 3000) return { ranked: r.ranked, info: { ...r.info, sensor: !!o } };
+    }
+    return { ranked: BouleDetect.rank(M.balls, M.jack, S.ball, S.jack), info: null };
+  }
+
   const COL = ['#2f9e5b', '#2c5d8a', '#2c5d8a', '#2c5d8a', '#2c5d8a', '#2c5d8a'];
   function render() {
     const cvs = $('cv'), src = M.src; if (!src) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = cvs.parentElement.clientWidth;
-    const ranked = BouleDetect.rank(M.balls, M.jack, S.ball, S.jack);
+    const { ranked, info: corrInfo } = ranking();
     const top = ranked.slice(0, 6);
     // Ausschnitt: ganzes Bild oder Nahansicht auf Schweinchen + Plätze 1–2
     let crop = { x: 0, y: 0, w: src.width, h: src.height };
@@ -250,9 +266,10 @@
     const notes = [];
     if (!M.ballR) notes.push('Keine Kugeln erkannt. Näher herangehen (ca. 1–1,5 m), Schatten vermeiden und alle Kugeln vollständig ins Bild nehmen.');
     else if (!M.jack) notes.push('Schweinchen nicht erkannt: Modus „Schweinchen" wählen und es im Bild antippen.');
-    if (M.tilt != null && M.tilt > 6) notes.push(`Das Handy war ${M.tilt.toFixed(0)}° geneigt – Abstände können ungenau sein.`);
+    if (corrInfo) notes.push(`Korrigiert für ${(corrInfo.heightMm / 1000).toLocaleString('de-DE', { maximumFractionDigits: 2 })} m Höhe${corrInfo.sensor ? ` und ${corrInfo.tilt.toFixed(1).replace('.', ',')}° Neigung` : ' (ohne Neigungsdaten)'}.`);
+    else if (M.tilt != null && M.tilt > 6) notes.push(`Das Handy war ${M.tilt.toFixed(0)}° geneigt – Abstände können ungenau sein.`);
     if (M.ballR) notes.push('Fehlt eine Kugel oder ist eine falsch? Mit „+ Kugel" / „− Kugel" korrigieren.');
-    $('resNotes').innerHTML = notes.map((n, i) => `<div class="${i === notes.length - 1 && M.ballR ? 'muted' : 'note'}" style="margin:6px 2px">${esc(n)}</div>`).join('');
+    $('resNotes').innerHTML = notes.map(n => `<div class="${/^(Fehlt|Korrigiert)/.test(n) ? 'muted' : 'note'}" style="margin:6px 2px">${esc(n)}</div>`).join('');
   }
   window.addEventListener('resize', () => { if (!$('mResult').classList.contains('hide')) render(); });
 
@@ -286,7 +303,7 @@
   });
   $('btnToTraining').addEventListener('click', () => {
     if (!M.pending) return;
-    const ranked = BouleDetect.rank(M.balls, M.jack, S.ball, S.jack);
+    const { ranked } = ranking();
     const p = M.pending; M.pending = null;
     p.cb(ranked.slice(0, p.n).map(r => r.mm));
   });
