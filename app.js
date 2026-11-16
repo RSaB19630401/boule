@@ -21,6 +21,7 @@
     if (t !== 'messen') stopCamera();
     LS.set('tab', t);
     if (t === 'spieler' && appReady) renderPlayers();
+    if (t === 'trainer' && window.BouleTrainer) BouleTrainer.refresh();
     window.scrollTo(0, 0);
   }
 
@@ -146,7 +147,13 @@
 
   /* ---------- Analyse ---------- */
   const M = { src: null, mat: null, balls: null, jack: null, ballR: 0, tilt: null, mode: 'view', zoom: false, crop: null };
-  function setMView(v) { ['mIdle', 'mBusy', 'mResult'].forEach(id => $(id).classList.toggle('hide', id !== v)); }
+  function setMView(v) {
+    ['mIdle', 'mBusy', 'mResult'].forEach(id => $(id).classList.toggle('hide', id !== v));
+    const ph = $('pendingHint');
+    ph.classList.toggle('hide', !M.pending);
+    if (M.pending) ph.innerHTML = `<b>Training:</b> ${esc(M.pending.label)} – ${M.pending.n} Kugel(n) messen. Nur die Kugeln dieses Spielers sollten liegen. <button class="x" id="pendCancel" style="float:right">Abbrechen</button>`;
+  }
+  document.addEventListener('click', e => { if (e.target.id === 'pendCancel') { M.pending = null; setMView('mIdle'); showTab('trainer'); } });
 
   async function analyse(canvas, capturedTilt) {
     // Größe begrenzen (Speicher/Tempo); Erkennung skaliert intern weiter
@@ -200,6 +207,9 @@
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, -crop.x * dpr * scale, -crop.y * dpr * scale);
     ctx.drawImage(src, 0, 0);
     $('btnZoom').classList.toggle('hide', !(M.jack && top.length));
+    const ttb = $('btnToTraining');
+    ttb.classList.toggle('hide', !M.pending);
+    if (M.pending) { ttb.textContent = `Ins Training übernehmen (${Math.min(M.pending.n, top.length)} von ${M.pending.n})`; ttb.disabled = !top.length; }
     $('btnZoom').textContent = M.zoom ? 'Gesamtbild' : 'Nahansicht Platz 1–2';
     const lw = Math.max(2 / scale, M.ballR * 0.07);
     // übrige Kugeln
@@ -273,6 +283,12 @@
       setMode('view');
     }
     render();
+  });
+  $('btnToTraining').addEventListener('click', () => {
+    if (!M.pending) return;
+    const ranked = BouleDetect.rank(M.balls, M.jack, S.ball, S.jack);
+    const p = M.pending; M.pending = null;
+    p.cb(ranked.slice(0, p.n).map(r => r.mm));
   });
   $('btnZoom').addEventListener('click', () => { M.zoom = !M.zoom; render(); });
   $('btnAgain').addEventListener('click', () => {
@@ -553,7 +569,7 @@
 
   // Export / Import
   $('btnExport').addEventListener('click', () => {
-    const data = { app: 'boule', version: 1, exported: new Date().toISOString(), players, games };
+    const data = { app: 'boule', version: 2, exported: new Date().toISOString(), players, games, trainings: window.BouleTrainer ? BouleTrainer.all() : [] };
     const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `boule-daten-${new Date().toISOString().slice(0, 10)}.json`;
@@ -569,10 +585,17 @@
       const np = d.players.filter(p => p && p.id && p.name && !pIds.has(p.id));
       const ng = d.games.filter(g => g && g.id && g.teams && g.score && !gIds.has(g.id));
       players = players.concat(np); games = games.concat(ng); savePlayers(); saveGames();
-      alert(`Import fertig: ${np.length} neue Spieler, ${ng.length} neue Spiele (bereits vorhandene wurden übersprungen).`);
+      const nt = Array.isArray(d.trainings) && window.BouleTrainer ? BouleTrainer.merge(d.trainings) : 0;
+      alert(`Import fertig: ${np.length} neue Spieler, ${ng.length} neue Spiele, ${nt} neue Trainingseinheiten (bereits vorhandene wurden übersprungen).`);
       renderPlayers(); renderPast();
     } catch (err) { alert('Import fehlgeschlagen: ' + err.message); }
   });
+  // Schnittstelle für den Trainer (trainer.js)
+  window.BouleApp = {
+    LS, esc, showTab, players: () => players, pName,
+    // Kamera-Messung für das Training: liefert die n nächsten Abstände (mm) an cb
+    measure(n, label, cb) { M.pending = { n, label, cb }; $('btnAgain').click(); showTab('messen'); },
+  };
   appReady = true;
   renderPlayers();
   showTab(LS.get('tab', 'messen')); // erst jetzt: alle Variablen sind initialisiert

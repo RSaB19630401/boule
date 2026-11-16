@@ -1,6 +1,6 @@
 # Boule-App (PWA) – Version 1
 
-Fünf Reiter: **Messen** (Kamera → die 6 nächsten Kugeln mit Abstand), **Spielstand**, **Spieler** (Liste, Statistik, Rangliste), **Regeln** (Übersicht + Regel-Chat), **Trainer** (Platzhalter).
+Fünf Reiter: **Messen** (Kamera → die 6 nächsten Kugeln mit Abstand), **Spielstand**, **Spieler** (Liste, Statistik, Rangliste), **Regeln** (Übersicht + Regel-Chat), **Trainer**.
 
 ## Dateien
 | Datei | Zweck |
@@ -9,6 +9,7 @@ Fünf Reiter: **Messen** (Kamera → die 6 nächsten Kugeln mit Abstand), **Spie
 | `app.js` | App-Logik (Kamera, Libelle, Auswertung, Spielstand, Chat) |
 | `detect.js` | Kugel- und Schweinchenerkennung (OpenCV.js) |
 | `stats.js` | Statistik (Siege, Partner/Gegner, Verlauf, Rangliste) |
+| `trainer.js` | Trainer: Übungskatalog, geführte Einheiten, Auswertung |
 | `rules.js` | Regelübersicht (eigene Kurzfassung FIPJP, Stand Dez. 2020 – für 2026 unverändert) |
 | `sw.js`, `manifest.webmanifest`, `icon*.{svg,png}` | Offline-Fähigkeit, „Zum Home-Bildschirm“ |
 | `worker/boule-chat-worker.js` | Cloudflare Worker für den Regel-Chat (nicht nach GitHub Pages hochladen nötig) |
@@ -39,6 +40,14 @@ Fünf Reiter: **Messen** (Kamera → die 6 nächsten Kugeln mit Abstand), **Spie
 - Statistik je Spieler: Siege/Niederlagen, Punkte, je Spielform, beste Partner, schwierigste Gegner (ab 2 gemeinsamen Spielen), Verlauf.
 - Rangliste nach Siegquote, dann Punktdifferenz; Mindestanzahl Spiele in ⚙️ (Standard 3).
 - Daten nur auf dem Handy → regelmäßig **Exportieren** (JSON). Import führt zusammen, überschreibt nichts.
+
+## Trainer (v3)
+- **Legen:** Distanzleiter (6–10 m), Zufallsdistanz, Kurz–lang. Erfassung per Zone (≤10 / 10–30 / 30–50 / >50 cm) oder per Kamera je Runde.
+- **Schießen:** Trefferserie (6–9 m, Carreau/Treffer/Fehl), Kugel am Schweinchen, Schweinchen schießen.
+- **Präzisionsschießen:** komplett (5 Aufgaben × 6–9 m, max. 100) und kurz (6 m, max. 25); vereinfachte Wertung 5/3/1/0 nach DPV-Richtlinie DM Tireur (Stand 03/2026).
+- **Spielsituationen:** 8 Taktik-Aufgaben mit maßstäblicher Skizze und Erklärung (Empfehlungen, keine Regeln).
+- Einzeln oder Gruppe (Auswahlreihenfolge = Wurfreihenfolge), „Gast“ ohne Statistik; laufende Einheit übersteht einen Neustart.
+- Auswertung je Spieler und Bereich; Trainings sind im Export enthalten.
 
 ## Ideen für später
 Turniermodus (Supermêlée), Trainer (Legen/Schießen mit Messung), Messung direkt in den Spielstand übernehmen.
