@@ -332,7 +332,7 @@
   const pct = (w, g) => g ? Math.round(100 * w / g) + ' %' : '–';
 
   /* ---------- Spielstand ---------- */
-  const FORMS = { tete: { label: 'Tête-à-tête', max: 3, size: 1 }, doublette: { label: 'Doublette', max: 6, size: 2 }, triplette: { label: 'Triplette', max: 6, size: 3 } };
+  const FORMS = { tete: { label: 'Tête-à-tête', max: 3, size: 1 }, doublette: { label: 'Doublette', max: 6, size: 2 }, triplette: { label: 'Triplette', max: 6, size: 3 }, misch: { label: '2 gegen 3', max: 6, size: [2, 3] } };
   let G = LS.get('game', null);
   if (G && !G.teams) G.teams = [{ name: G.a, players: [] }, { name: G.b, players: [] }];
   let pickTeam = null;
@@ -383,12 +383,12 @@
   const setup = { sel: [[], []], named: [false, false] };
   const nameInputs = [$('gA'), $('gB')];
   nameInputs.forEach((inp, t) => inp.addEventListener('input', () => { setup.named[t] = inp.value.trim() !== ''; }));
-  function teamSize() { return FORMS[$('gForm').value].size; }
+  // Spieler je Team; bei „2 gegen 3“ hat Team A zwei, Team B drei Spieler
+  function teamSize(t = pickFor) { const z = FORMS[$('gForm').value].size; return Array.isArray(z) ? z[t] : z; }
   function renderSetupChips() {
-    const size = teamSize();
-    setup.sel = setup.sel.map(s => s.filter(pById).slice(0, size));
+    setup.sel = setup.sel.map((s, t) => s.filter(pById).slice(0, teamSize(t)));
     ['pcA', 'pcB'].forEach((id, t) => {
-      const sel = setup.sel[t];
+      const sel = setup.sel[t], size = teamSize(t);
       $(id).innerHTML = sel.map(pid => `<span class="pchip">${esc(pName(pid))}<button data-rm="${t}:${pid}" aria-label="entfernen">×</button></span>`).join('') +
         (sel.length < size ? `<button class="addp" data-add="${t}">+ Spieler (${sel.length}/${size})</button>` : '');
       if (!setup.named[t]) nameInputs[t].value = sel.length ? sel.map(pName).join(' & ') : (t ? 'Team B' : 'Team A');

@@ -225,6 +225,7 @@ svg.sit{width:100%;height:auto;display:block;border-radius:12px}
         <option value="tete">Tête-à-tête (1 gg. 1, je 3 Kugeln)</option>
         <option value="doublette" selected>Doublette (2 gg. 2, je 3 Kugeln)</option>
         <option value="triplette">Triplette (3 gg. 3, je 2 Kugeln)</option>
+        <option value="misch">2 gegen 3 (2er je 3, 3er je 2 Kugeln)</option>
       </select>
       <div class="row" style="gap:10px">
         <div style="flex:1;min-width:150px"><label class="f" for="gA">Team A</label><input class="f" id="gA" value="Team A">
@@ -268,7 +269,7 @@ svg.sit{width:100%;height:auto;display:block;border-radius:12px}
       <div class="seg" id="plSeg"><button data-v="rank" class="on">Rangliste</button><button data-v="list">Spieler</button></div>
       <div id="plRank">
         <div class="filters">
-          <select class="f" id="rkForm"><option value="alle">Alle Spielformen</option><option value="tete">Tête-à-tête</option><option value="doublette">Doublette</option><option value="triplette">Triplette</option></select>
+          <select class="f" id="rkForm"><option value="alle">Alle Spielformen</option><option value="tete">Tête-à-tête</option><option value="doublette">Doublette</option><option value="triplette">Triplette</option><option value="misch">2 gegen 3</option></select>
           <select class="f" id="rkYear"></select>
         </div>
         <div class="card" style="padding:6px 12px"><table class="st" id="rkTable"></table></div>
@@ -287,7 +288,7 @@ svg.sit{width:100%;height:auto;display:block;border-radius:12px}
     <div id="plDetail" class="hide">
       <div class="row" style="align-items:center;margin-bottom:10px"><button class="btn" id="pdBack" style="flex:0 0 auto">← Zurück</button><div style="flex:1;font-size:20px;font-weight:800" id="pdName"></div><button class="btn" id="pdEdit" style="flex:0 0 auto">Bearbeiten</button></div>
       <div class="filters">
-        <select class="f" id="pdForm"><option value="alle">Alle Spielformen</option><option value="tete">Tête-à-tête</option><option value="doublette">Doublette</option><option value="triplette">Triplette</option></select>
+        <select class="f" id="pdForm"><option value="alle">Alle Spielformen</option><option value="tete">Tête-à-tête</option><option value="doublette">Doublette</option><option value="triplette">Triplette</option><option value="misch">2 gegen 3</option></select>
         <select class="f" id="pdYear"></select>
       </div>
       <div id="pdBody"></div>
