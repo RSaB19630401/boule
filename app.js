@@ -392,6 +392,7 @@
       $(id).innerHTML = sel.map(pid => `<span class="pchip">${esc(pName(pid))}<button data-rm="${t}:${pid}" aria-label="entfernen">×</button></span>`).join('') +
         (sel.length < size ? `<button class="addp" data-add="${t}">+ Spieler (${sel.length}/${size})</button>` : '');
       if (!setup.named[t]) nameInputs[t].value = sel.length ? sel.map(pName).join(' & ') : (t ? 'Team B' : 'Team A');
+      const ql = $(t ? 'qBl' : 'qAl'); if (ql) ql.textContent = nameInputs[t].value;
     });
   }
   $('gForm').addEventListener('change', renderSetupChips);
@@ -425,6 +426,31 @@
   });
   $('pkDone').addEventListener('click', () => $('dlgPick').close());
   $('pkNew').addEventListener('click', () => openPlayerDlg(null, p => { if (setup.sel[pickFor].length < teamSize()) setup.sel[pickFor].push(p.id); renderPicker(); renderSetupChips(); }));
+
+  // Nur Endergebnis eintragen (z. B. Trainingsspiele)
+  const isoToday = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+  $('gQuickOpen').addEventListener('click', () => {
+    $('gQuick').classList.toggle('hide');
+    $('qAl').textContent = nameInputs[0].value.trim() || 'Team A'; $('qBl').textContent = nameInputs[1].value.trim() || 'Team B';
+    if (!$('qDate').value) $('qDate').value = isoToday();
+    $('qMsg').textContent = '';
+    if (!$('gQuick').classList.contains('hide')) setTimeout(() => $('qA').focus(), 50);
+  });
+  $('gQuickCancel').addEventListener('click', () => $('gQuick').classList.add('hide'));
+  $('gQuickSave').addEventListener('click', () => {
+    const a = parseInt($('qA').value, 10), b = parseInt($('qB').value, 10), target = +$('gTarget').value;
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0 || a > 30 || b > 30) { alert('Bitte beide Punktzahlen eintragen.'); return; }
+    if (a === b) { alert('Unentschieden gibt es beim Boule nicht – bitte Ergebnis prüfen.'); return; }
+    if (Math.max(a, b) < target && !confirm(`Keiner hat ${target} Punkte erreicht (z. B. Zeitspiel). Trotzdem so speichern?`)) return;
+    const dv = $('qDate').value, date = !dv || dv === isoToday() ? Date.now() : new Date(dv + 'T12:00:00').getTime();
+    const teams = [0, 1].map(t => ({ name: nameInputs[t].value.trim() || (t ? 'Team B' : 'Team A'), players: [...setup.sel[t]] }));
+    games.push({ id: uid(), date, form: $('gForm').value, target, teams, score: [a, b], ends: [], quick: true });
+    saveGames(); renderPast();
+    $('qA').value = ''; $('qB').value = '';
+    $('qMsg').textContent = `Gespeichert: ${teams[0].name} – ${teams[1].name} ${a}:${b}. Spieler bleiben ausgewählt für das nächste Ergebnis.`;
+    if (navigator.vibrate) navigator.vibrate(30);
+  });
+  nameInputs.forEach((inp, t) => inp.addEventListener('input', () => { $(t ? 'qBl' : 'qAl').textContent = inp.value.trim() || (t ? 'Team B' : 'Team A'); }));
 
   $('gStart').addEventListener('click', () => {
     const teams = [0, 1].map(t => ({ name: nameInputs[t].value.trim() || (t ? 'Team B' : 'Team A'), players: [...setup.sel[t]] }));
