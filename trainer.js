@@ -36,36 +36,47 @@
 
   /* ---------- Übungskatalog ---------- */
   const PREC_TASKS = [
-    { t: 'Aufgabe 1 – Kugel allein', setup: 'Treffkugel in der Mitte des Zielkreises (1 m), kein Hindernis.' },
-    { t: 'Aufgabe 2 – Schweinchen davor', setup: 'Schweinchen als Hindernis vor der Treffkugel, 10 cm lichter Abstand.' },
-    { t: 'Aufgabe 3 – Kugel zwischen Hindernissen', setup: 'Treffkugel zwischen dunklen Hinderniskugeln, 3 cm lichter Abstand.' },
-    { t: 'Aufgabe 4 – Kugel hinter Hindernis', setup: 'Hinderniskugel vor der Treffkugel, 10 cm lichter Abstand.' },
-    { t: 'Aufgabe 5 – Schweinchen', setup: 'Schweinchen allein, 20 cm hinter dem vorderen Rand des Zielkreises.' },
+    { t: 'Aufgabe 1 – Kugel allein', setup: 'Treffkugel in der Mitte des Zielkreises (1 m), kein Hindernis.', tip: 'Direkt auf die Kugel (au fer). 5 Punkte gibt es nur, wenn deine Kugel im Kreis bleibt – sauber in die Mitte treffen.' },
+    { t: 'Aufgabe 2 – Schweinchen davor', setup: 'Schweinchen als Hindernis vor der Treffkugel, 10 cm lichter Abstand.', tip: 'Etwas höhere Flugkurve, über das Schweinchen hinweg direkt auf die Kugel. Jedes Aufsetzen davor trifft das Schweinchen.' },
+    { t: 'Aufgabe 3 – Kugel zwischen Hindernissen', setup: 'Treffkugel zwischen dunklen Hinderniskugeln, 3 cm lichter Abstand.', tip: 'Seitliche Genauigkeit zählt: Arm exakt in der Wurfebene pendeln, Schultern parallel zum Kreis. Die Hindernisse nicht ansehen, nur die Mitte der Treffkugel.' },
+    { t: 'Aufgabe 4 – Kugel hinter Hindernis', setup: 'Hinderniskugel vor der Treffkugel, 10 cm lichter Abstand.', tip: 'Wie Aufgabe 2, nur ist das Hindernis größer: Flugbahn etwas höher wählen und direkt auf die hintere Kugel zielen.' },
+    { t: 'Aufgabe 5 – Schweinchen', setup: 'Schweinchen allein, 20 cm hinter dem vorderen Rand des Zielkreises.', tip: 'Kleinstes Ziel: ruhig bleiben, auf das Schweinchen selbst zielen. Bleibt deine Kugel im Kreis, gibt es die volle Punktzahl.' },
   ];
   const EX = [
     { id: 'L1', cat: 'legen', title: 'Distanzleiter', mode: 'zones', short: 'Je 3 Kugeln auf 6, 7, 8, 9 und 10 m',
       howto: ['Schweinchen auf die Distanz legen (Abstand ab Kreisrand).', 'Jeder Spieler legt 3 Kugeln, dann Zone antippen oder per Kamera messen.', 'Bei Gruppen: nur die Kugeln des aktuellen Spielers liegen lassen, dann wegräumen.'],
+      tips: ["Wähle die Technik nach Boden: Roller (rollt fast den ganzen Weg) auf glattem Boden, halbhoch (Aufsetzpunkt etwa auf halber Strecke) als Standard, hoch (Aufsetzen kurz vor dem Ziel) auf unruhigem oder sandigem Boden.", "Vor dem Wurf den Aufsetzpunkt (Donnée) festlegen und nur noch diesen ansehen, nicht das Schweinchen.", "In der Hocke: Gewicht auf Zehen und Fußballen, beim Rechtshänder zeigt das rechte Knie zum Ziel. Gleichgewicht halten, bis die Kugel liegt.", "Arm pendelt locker in einer Ebene, die Kugel verlässt die Hand mit gestrecktem Arm. Rückwärtsdrall (Handrücken oben, Kugel über die Fingerspitzen abrollen lassen) bremst die Kugel nach dem Aufsetzen.", "Bei langen Distanzen nicht fester werfen, sondern höher – so bleibt der Bewegungsablauf gleich."],
       make: () => blocks([6, 7, 8, 9, 10], 3) },
     { id: 'L2', cat: 'legen', title: 'Zufallsdistanz', mode: 'zones', short: '4 Runden à 3 Kugeln, Distanz wird zufällig zwischen 6 und 10 m vorgegeben',
       howto: ['Die App nennt je Runde eine Distanz – wie im Spiel, wo das Schweinchen überall liegen kann.', 'Zone antippen oder per Kamera messen.'],
+      tips: ["Distanz erst abschreiten, dann den Aufsetzpunkt wählen.", "Bei jeder neuen Distanz denselben Ablauf beibehalten, nur die Höhe der Flugkurve anpassen.", "Nach der ersten Kugel kurz prüfen: Lag sie zu kurz oder zu lang? Den Aufsetzpunkt verschieben, nicht die Kraft."],
       make: () => Array.from({ length: 4 }, () => { const d = 6 + Math.round(Math.random() * 8) / 2; return { dist: d, n: 3, label: `${String(d).replace('.', ',')} m` }; }) },
     { id: 'L3', cat: 'legen', title: 'Kurz – lang', mode: 'zones', short: 'Abwechselnd 6 und 10 m, je 2 Kugeln, 4 Runden',
       howto: ['Trainiert das Umstellen der Wurfweite.', 'Schweinchen nach jeder Runde umlegen.'],
+      tips: ["Der Wechsel kurz–lang ist im Spiel häufig. Konzentriere dich auf einen festen Aufsetzpunkt je Distanz.", "Nicht die Kraft „schätzen“: höher werfen für 10 m, flacher für 6 m.", "Ruhig atmen und vor jedem Wurf neu aufstellen, nicht hastig nachwerfen."],
       make: () => [6, 10, 6, 10].map(d => ({ dist: d, n: 2, label: `${d} m` })) },
     { id: 'S1', cat: 'schiessen', title: 'Trefferserie', mode: 'shot', short: 'Je 5 Schüsse auf eine freie Kugel aus 6, 7, 8 und 9 m',
       howto: ['Zielkugel frei hinlegen.', 'Nach jedem Schuss Ergebnis antippen.', 'Carreau: die eigene Kugel bleibt (fast) am Platz der getroffenen.'],
+      tips: ["Stand: aufrecht, Füße schulterbreit im Kreis, Gewicht leicht nach vorn. Die Füße bleiben stehen, bis die Kugel aufgekommen ist.", "Nur die Zielkugel ansehen – nicht die eigene Kugel in der Hand und nicht die Flugbahn.", "Arm pendelt gerade wie ein Uhrpendel, die Schulter bleibt ruhig. Die Hand zeigt nach dem Abwurf zum Ziel.", "Aufbau in Stufen: erst 20–30 cm vor der Kugel aufsetzen (Schuss davor), dann den Aufsetzpunkt immer näher an die Kugel legen, bis du sie direkt triffst (au fer).", "Carreau entsteht bei einem vollen, mittigen Treffer mit Rückwärtsdrall: Die getroffene Kugel nimmt die Energie auf, deine bleibt liegen."],
       make: () => blocks(D4, 5) },
-    { id: 'S2', cat: 'schiessen', title: 'Kugel am Schweinchen', mode: 'shotjack', short: '10 Schüsse aus 7 m auf eine Kugel, die direkt am Schweinchen liegt',
-      howto: ['Zielkugel berührt das Schweinchen (davor).', 'Ziel: Kugel weg, Schweinchen bleibt liegen.'],
-      make: () => [{ dist: 7, n: 5, label: '7 m' }, { dist: 7, n: 5, label: '7 m' }] },
+    { id: 'S2', cat: 'schiessen', title: 'Kugel am Schweinchen', mode: 'shotjack', short: 'Je 5 Schüsse aus 7 m: Kugel direkt hinter und direkt neben dem Schweinchen',
+      howto: ['Runde 1: Zielkugel liegt direkt hinter dem Schweinchen (vom Kreis aus gesehen), berührend.', 'Runde 2: Zielkugel liegt seitlich am Schweinchen, berührend.', 'Ziel: Kugel weg, Schweinchen bleibt liegen.'],
+      tips: ['Nur der direkte Schuss (au fer) funktioniert: Deine Kugel darf vorher nicht aufsetzen, sonst rollt sie ins Schweinchen.',
+        'Kugel hinter dem Schweinchen: Flugkurve etwas höher als sonst, damit deine Kugel über das Schweinchen hinweg von oben auf die Zielkugel fällt. Ziel ist die hintere obere Hälfte der Zielkugel.',
+        'Kugel neben dem Schweinchen: Die Zielkugel fliegt immer in Richtung der Linie von der Trefferstelle durch ihre Mitte. Triff sie auf der Seite zum Schweinchen hin, dann fliegt sie vom Schweinchen weg. Deine eigene Kugel wird dabei zur Schweinchenseite abgelenkt – deshalb von oben treffen, damit sie nach dem Treffer liegen bleibt statt weiterzurollen.',
+        'Kugel vor dem Schweinchen (berührend): Hier wird das Schweinchen fast immer mitbewegt, weil die getroffene Kugel nach vorn ins Schweinchen läuft. Ein dünner, seitlicher Treffer gibt ihm nur einen leichten Stoß. Oft ist hier Legen oder Schweinchen mitnehmen die bessere Wahl.'],
+      make: () => [{ dist: 7, n: 5, label: '7 m · Kugel hinter dem Schweinchen' }, { dist: 7, n: 5, label: '7 m · Kugel neben dem Schweinchen' }] },
     { id: 'S3', cat: 'schiessen', title: 'Schweinchen schießen', mode: 'hit', short: 'Je 5 Schüsse auf das Schweinchen aus 6 und 8 m',
       howto: ['Für die Situation „Aufnahme retten“: Schweinchen ins Aus schießen.', 'Treffer zählt, wenn das Schweinchen getroffen wurde.'],
+      tips: ["Das Schweinchen ist kleiner als eine Kugel: genau zielen, lieber direkt (au fer) als davor.", "Bei einem Schuss davor auf glattem Boden mit wenig Steinen funktioniert auch Aufsetzen knapp vor dem Schweinchen.", "Typische Lage: Rettet eine Aufnahme, wenn das Schweinchen ins Aus fliegt – vorher prüfen, ob es nah genug an der Linie liegt."],
       make: () => blocks([6, 8], 5) },
     { id: 'P1', cat: 'praezision', title: 'Präzisionsschießen (komplett)', mode: 'prec', short: '5 Aufgaben × 6, 7, 8, 9 m = 20 Schüsse, max. 100 Punkte',
       howto: ['Zielkreis 1 m; Wurfkreise 50 cm, vordere Ränder 6–9 m vom vorderen Rand des Zielkreises.', 'Treffkugeln liegen in der Mitte des Zielkreises.', 'Im Wettkampf: 15 Minuten für alle 5 Aufgaben; gültig nur, wenn der Aufschlag im Zielkreis liegt.', 'Vereinfachte Wertung 5/3/1/0 – Sonderfälle siehe DPV-Richtlinie DM Tireur.'],
+      tips: ["Gleiche Wurfroutine bei jedem Schuss: aufstellen, Ziel anvisieren, ausatmen, schießen.", "Die Zeit ist großzügig (15 Minuten für 20 Schüsse) – nicht hetzen.", "Tipps für die einzelnen Aufgaben erscheinen während der Übung."],
       make: () => PREC_TASKS.flatMap((t, i) => D4.map(d => ({ dist: d, n: 1, label: `A${i + 1} · ${d} m`, task: i }))) },
     { id: 'P2', cat: 'praezision', title: 'Präzisionsschießen kurz (6 m)', mode: 'prec', short: 'Alle 5 Aufgaben je einmal aus 6 m – wie im K.-o.-Duell',
       howto: ['Format der Duelle ab dem Viertelfinale: je ein Schuss pro Aufgabe aus 6 m.', 'Max. 25 Punkte.'],
+      tips: ["Wie im Duell: nur ein Versuch je Aufgabe, also maximale Konzentration bei jedem Schuss.", "Tipps für die einzelnen Aufgaben erscheinen während der Übung."],
       make: () => PREC_TASKS.map((t, i) => ({ dist: 6, n: 1, label: `A${i + 1} · 6 m`, task: i })) },
     { id: 'Q1', cat: 'situation', title: 'Spielsituationen', mode: 'quiz', short: 'Was spielst du hier? Taktik-Aufgaben mit Erklärung',
       howto: ['Lage ansehen, Antwort wählen, Erklärung lesen.', 'Taktik ist Erfahrungssache: Die Antworten sind Empfehlungen, keine Regeln.'],
@@ -160,6 +171,7 @@
       <button class="btn" data-act="home">← Übungen</button>
       <div class="card" style="margin-top:10px"><h2>${esc(e.title)}</h2><p class="muted" style="margin:0 0 6px">${esc(e.short)}</p>
         <ul class="tips">${e.howto.map(h => `<li>${esc(h)}</li>`).join('')}</ul></div>
+      ${e.tips ? `<div class="card"><h2>💡 Worauf achten</h2><ul class="tips">${e.tips.map(h => `<li>${esc(h)}</li>`).join('')}</ul></div>` : ''}
       <div class="card"><h2>${quiz ? 'Wer löst die Aufgaben?' : 'Wer trainiert?'}</h2>
         <p class="muted" style="margin:0 0 6px">${quiz ? 'Ein Spieler oder Gast.' : 'Ein oder mehrere Spieler – die Reihenfolge der Auswahl ist die Wurfreihenfolge.'}</p>
         <ul class="plist">${[{ id: GAST, name: 'Gast (ohne Statistik)' }, ...pl].map(p => {
@@ -188,8 +200,9 @@
         const r = st.res[i]; const o = r && outs.find(x => x.k === r.k);
         return `<span class="slot ${o ? o.cls : ''}">${o ? (r.mm != null ? cm(r.mm) : esc(o.label)) : i + 1}</span>`;
       }).join('');
-      const task = b.task != null ? `<div class="note" style="border-color:var(--blue);background:#eef4fa"><b>${esc(PREC_TASKS[b.task].t)}</b><br>${esc(PREC_TASKS[b.task].setup)}</div>` : '';
-      body = `${task}
+      const task = b.task != null ? `<div class="note" style="border-color:var(--blue);background:#eef4fa"><b>${esc(PREC_TASKS[b.task].t)}</b><br>${esc(PREC_TASKS[b.task].setup)}<br><span style="display:block;margin-top:6px">💡 ${esc(PREC_TASKS[b.task].tip)}</span></div>` : '';
+      const tipBox = e.tips ? `<details class="card tipbox"><summary>💡 Technik-Tipps</summary><ul class="tips">${e.tips.map(h => `<li>${esc(h)}</li>`).join('')}</ul></details>` : '';
+      body = `${task}${tipBox}
         <div class="card"><div class="slots">${slots}</div>
           <div class="obtns">${outs.map(o => `<button class="ob ${o.cls}" data-out="${o.k}" ${st.res.length >= b.n ? 'disabled' : ''}>${esc(o.label)}${o.hint ? `<small>${esc(o.hint)}</small>` : ''}</button>`).join('')}</div>
           ${e.mode === 'zones' ? `<button class="btn block" data-act="measure" style="margin-top:10px" ${st.res.length >= b.n ? 'disabled' : ''}>📷 ${b.n - st.res.length} Kugel(n) per Kamera messen</button>` : ''}
