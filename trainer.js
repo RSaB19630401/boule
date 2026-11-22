@@ -78,60 +78,181 @@
       howto: ['Format der Duelle ab dem Viertelfinale: je ein Schuss pro Aufgabe aus 6 m.', 'Max. 25 Punkte.'],
       tips: ["Wie im Duell: nur ein Versuch je Aufgabe, also maximale Konzentration bei jedem Schuss.", "Tipps für die einzelnen Aufgaben erscheinen während der Übung."],
       make: () => PREC_TASKS.map((t, i) => ({ dist: 6, n: 1, label: `A${i + 1} · 6 m`, task: i })) },
-    { id: 'Q1', cat: 'situation', title: 'Spielsituationen', mode: 'quiz', short: 'Was spielst du hier? Taktik-Aufgaben mit Erklärung',
-      howto: ['Lage ansehen, Antwort wählen, Erklärung lesen.', 'Taktik ist Erfahrungssache: Die Antworten sind Empfehlungen, keine Regeln.'],
-      make: () => SIT.map((s, i) => ({ n: 1, label: `Situation ${i + 1}`, sit: i })) },
+    { id: 'Q1', cat: 'situation', title: 'Taktik-Quiz', mode: 'quiz', short: '10 zufällige Situationen aus 25 – je 3 Antworten mit Erklärung',
+      howto: ['Lage ansehen, eine von drei Antworten wählen, Erklärung lesen.', 'Themen: Legen oder Schießen, Kugelzählen & Spielstand, Schweinchen & Regeln, Rollen im Team.', 'Regelfragen folgen dem FIPJP-Reglement; Taktik-Antworten sind Empfehlungen, keine Regeln.'],
+      make: () => shuffle(SIT).slice(0, 10).map((s, i) => ({ n: 1, label: `Frage ${i + 1} von 10`, sid: s.id, order: shuffle([0, 1, 2]) })) },
+    { id: 'Q2', cat: 'situation', title: 'Taktik-Quiz nach Thema', mode: 'quiz', short: 'Alle Situationen eines Themas der Reihe nach',
+      howto: ['Wähle beim Start ein Thema.', 'Gut, um ein Thema gezielt mit der Gruppe durchzusprechen.'],
+      make: th => SIT.filter(s => !th || s.th === th).map((s, i, arr) => ({ n: 1, label: `Frage ${i + 1} von ${arr.length}`, sid: s.id, order: shuffle([0, 1, 2]) })) },
   ];
   const CATS = [
     { k: 'legen', label: 'Legen', icon: '◎' }, { k: 'schiessen', label: 'Schießen', icon: '✕' },
-    { k: 'praezision', label: 'Präzisionsschießen', icon: '◉' }, { k: 'situation', label: 'Spielsituationen', icon: '?' },
+    { k: 'praezision', label: 'Präzisionsschießen', icon: '◉' }, { k: 'situation', label: 'Taktik', icon: '?' },
   ];
   const OUT = { zones: ZONES, shot: SHOT, shotjack: SHOT_JACK, hit: HIT, prec: PREC };
 
-  /* ---------- Spielsituationen (Koordinaten in cm, Schweinchen bei 0/0, Kreis unten) ---------- */
-  const SIT = [
-    { title: 'Gegner liegt am Schweinchen', ours: [[-30, 35]], theirs: [[3, 6]], hand: [3, 2],
-      q: 'Du bist dran. Legen oder Schießen?', a: [
-        ['Legen', false, 'Eine Kugel 3 cm am Schweinchen zu überbieten gelingt selten. Du würdest eher eine Kugel verschenken.'],
-        ['Schießen', true, 'Die gegnerische Kugel liegt praktisch perfekt. Mit 3 gegen 2 Kugeln kannst du dir einen Schuss leisten – im besten Fall bleibt deine Kugel liegen (Carreau).'],
+  /* ---------- Taktik-Quiz: Situationen ----------
+   * Positionen polar: [Abstand Kante–Schweinchen in cm, Winkel in Grad]; 90° = hinter dem Schweinchen,
+   * 270° = davor (Richtung Wurfkreis). Jede Situation hat genau 3 Antworten, genau eine ist richtig.
+   * Themen: ls = Legen oder Schießen, kz = Kugelzählen & Spielstand, sr = Schweinchen & Regeln, ro = Rollen im Team
+   */
+  const pol = ([d, a]) => { const r = d + 5.15, w = a * Math.PI / 180; return [r * Math.cos(w), r * Math.sin(w)]; };
+  const THEMES = { ls: 'Legen oder Schießen', kz: 'Kugelzählen & Spielstand', sr: 'Schweinchen & Regeln', ro: 'Rollen im Team' };
+  const SIT_RAW = [
+    { id: 'ls1', th: 'ls', title: 'Gegner liegt am Schweinchen', ours: [[30, 120]], theirs: [[1.5, 70]], hand: [3, 2],
+      q: 'Die gegnerische Kugel liegt 1,5 cm am Schweinchen. Was spielt ihr?', a: [
+        ['Schießen', true, 'So eine Kugel ist kaum zu überlegen. Mit 3 gegen 2 Kugeln könnt ihr euch den Schuss leisten – bleibt eure Kugel liegen (Carreau), habt ihr sogar den Punkt.'],
+        ['Legen', false, 'Unter 1,5 cm zu legen gelingt selten. Meist verschenkt ihr damit eine Kugel und müsst danach doch schießen.'],
+        ['Abwarten, der Gegner ist dran', false, 'Falsch: Es spielt immer das Team, das den Punkt nicht hält (Art. 16). Der Gegner liegt – also seid ihr dran.'],
       ] },
-    { title: 'Gegner hat keine Kugeln mehr', ours: [[35, 30]], theirs: [[-12, 15]], hand: [2, 0],
-      q: 'Der Gegner liegt mit 20 cm, hat aber keine Kugel mehr. Was spielst du?', a: [
-        ['Ruhig legen', true, 'Jetzt hast du alle Zeit: Jede Kugel, die besser als 20 cm liegt, ist ein Punkt. Schießen bringt dir höchstens einen Punkt – Legen bis zu zwei.'],
-        ['Schießen', false, 'Möglich, aber unnötig riskant: Bei einem Fehlschuss verschenkst du die Chance auf zwei Punkte.'],
+    { id: 'ls2', th: 'ls', title: 'Gegner ohne Kugeln', ours: [[45, 40]], theirs: [[20, 130]], hand: [2, 0],
+      q: 'Der Gegner liegt mit 20 cm und hat keine Kugel mehr. Ihr habt zwei.', a: [
+        ['Ruhig legen', true, 'Jetzt habt ihr alle Zeit: Jede Kugel unter 20 cm ist ein Punkt. Mit zwei Kugeln sind bis zu zwei Punkte möglich.'],
+        ['Die gegnerische Kugel schießen', false, 'Bringt höchstens einen Punkt (Carreau) und riskiert bei einem Fehlschuss die Chance auf zwei.'],
+        ['Schweinchen schießen', false, 'Ist das Schweinchen tot, bekommt das Team mit Kugeln so viele Punkte, wie es noch Kugeln hat (Art. 14) – nach dem Schuss wäre das nur noch eine. Legen bringt mehr.'],
       ] },
-    { title: 'Früh in der Aufnahme', ours: [], theirs: [[20, 18]], hand: [3, 2],
-      q: 'Der Gegner hat mit der ersten Kugel 27 cm gelegt. Deine erste Kugel?', a: [
-        ['Legen', true, '27 cm ist gut, aber schlagbar. Ein guter Leger holt den Punkt zurück, ohne den Kugelvorteil zu verspielen. Schießen lohnt erst bei sehr guten Kugeln.'],
-        ['Schießen', false, 'Auf eine mittelmäßige Kugel zu schießen kostet oft eine Kugel ohne Not. Der Gegner kann danach in Ruhe neu legen.'],
+    { id: 'ls3', th: 'ls', title: 'Früh in der Aufnahme', ours: [], theirs: [[27, 50]], hand: [3, 2],
+      q: 'Der Gegner hat mit seiner ersten Kugel 27 cm gelegt. Eure erste Kugel?', a: [
+        ['Legen', true, '27 cm ist gut, aber schlagbar. Ein Leger holt den Punkt zurück, ohne Kugeln zu verschwenden. Schießen lohnt erst bei sehr guten Kugeln.'],
+        ['Schießen', false, 'Auf eine mittelmäßige Kugel zu schießen kostet eine Kugel ohne Not – der Gegner legt danach in Ruhe neu.'],
+        ['Schweinchen schießen', false, 'Beide Teams haben noch Kugeln: Ist das Schweinchen tot, wird die Aufnahme nur neu gespielt (Art. 14). Ihr gewinnt nichts.'],
       ] },
-    { title: 'Drei Punkte drohen', ours: [], theirs: [[-6, 8], [8, -5], [2, 14]], hand: [1, 0], edge: true,
-      q: 'Der Gegner liegt mit 3 Kugeln, hat keine mehr. Du hast die letzte Kugel, das Schweinchen liegt 30 cm vor der Auslinie.', a: [
-        ['Legen', false, 'Selbst ein perfekter Leger rettet höchstens Punkte, wenn er besser liegt als alle drei – sehr unwahrscheinlich.'],
-        ['Eine Kugel wegschießen', false, 'Dann bekommt der Gegner immer noch 2 Punkte.'],
+    { id: 'ls4', th: 'ls', title: 'Zwei gegnerische Kugeln liegen', ours: [[30, 140]], theirs: [[3, 80], [4.5, 330]], hand: [3, 1],
+      q: 'Der Gegner hält zwei Punkte (3 und 4,5 cm) und hat noch eine Kugel. Ihr habt drei.', a: [
+        ['Schießen', true, 'Zwei so gute Kugeln überlegt man kaum. Ein Schuss räumt eine ab; mit 3 gegen 1 Kugel habt ihr danach genug zum Nachlegen.'],
+        ['Legen', false, 'Ihr müsstet unter 3 cm legen – und der Gegner hat noch eine Kugel zum Antworten.'],
+        ['Erst eine Kugel „vorlegen“ als Sperre', false, 'Eine Sperrkugel hilft nicht gegen Kugeln, die schon am Schweinchen liegen.'],
+      ] },
+    { id: 'ls5', th: 'ls', title: 'Letzte Kugel gegen zwei Punkte', ours: [[18, 30]], theirs: [[3, 120], [6, 60]], hand: [1, 0],
+      q: 'Der Gegner hält zwei Punkte (3 und 6 cm) und hat keine Kugel mehr. Ihr habt die letzte.', a: [
+        ['Legen', true, 'Nur ein Leger kann euch selbst einen Punkt bringen (unter 3 cm), und jeder Leger unter 6 cm nimmt dem Gegner einen Punkt.'],
+        ['Die beste Kugel schießen', false, 'Selbst ein Treffer lässt dem Gegner die zweite Kugel – also mindestens einen Punkt, außer bei einem perfekten Carreau.'],
+        ['Schweinchen schießen', false, 'Liegt das Schweinchen danach noch im Feld, zählt neu – meist liegen die gegnerischen Kugeln immer noch besser. Ohne Auslinie in der Nähe lohnt das nicht.'],
+      ] },
+    { id: 'ls6', th: 'ls', title: 'Tête-à-tête, schwacher Start', ours: [], theirs: [[45, 30]], hand: [3, 2],
+      q: 'Im Tête-à-tête hat euer Gegner mit der ersten Kugel 45 cm gelegt.', a: [
+        ['Legen', true, 'Eine 45-cm-Kugel ist keine Bedrohung. Legt den Punkt – dann muss der Gegner Kugeln investieren.'],
+        ['Schießen', false, 'Ihr würdet eine Kugel für eine schlechte gegnerische Kugel opfern.'],
+        ['Absichtlich weit legen', false, 'Ihr müsst ohnehin spielen, bis ihr den Punkt habt – eine weite Kugel kostet nur.'],
+      ] },
+    { id: 'ls7', th: 'ls', title: 'Kugel versperrt den Weg', ours: [], theirs: [[25, 270]], hand: [3, 2],
+      q: 'Die gegnerische Kugel liegt 25 cm direkt vor dem Schweinchen – genau auf eurer Rolllinie.', a: [
+        ['Hoch legen (Portée)', true, 'Mit hoher Flugkurve setzt die Kugel kurz vor dem Schweinchen auf und rollt kaum noch – so umgeht ihr die Sperre.'],
+        ['Rollen (Roulette)', false, 'Eine gerollte Kugel trifft die Sperrkugel und schiebt sie womöglich noch ans Schweinchen.'],
+        ['Schießen', false, '25 cm ist keine Kugel, die man schießen muss – Legen über die Sperre ist günstiger.'],
+      ] },
+    { id: 'ls8', th: 'ls', title: 'Zwei gegen eine Kugel', ours: [[40, 200]], theirs: [[22, 60], [35, 150]], hand: [2, 0],
+      q: 'Der Gegner liegt mit 22 cm, hat aber keine Kugel mehr. Ihr habt zwei.', a: [
+        ['Legen', true, 'Wie immer, wenn der Gegner leer ist: in Ruhe legen. Jede Kugel unter 22 cm ist ein Punkt.'],
+        ['Erst schießen, dann legen', false, 'Unnötig: Ein Fehlschuss kostet euch eine von zwei Chancen auf einen Punkt.'],
+        ['Schweinchen schießen', false, 'Ein totes Schweinchen bringt euch nur die Kugeln, die ihr danach noch habt – also eine (Art. 14). Legen bringt bis zu zwei.'],
+      ] },
+    { id: 'kz1', th: 'kz', title: 'Punkte zählen I', ours: [[5, 60], [12, 180]], theirs: [[10, 300]], hand: [0, 0],
+      q: 'Alle Kugeln sind gespielt. Wie viele Punkte bekommt ihr?', a: [
+        ['1 Punkt', true, 'Gezählt wird jede eigene Kugel, die näher liegt als die beste gegnerische (10 cm). Nur eure 5-cm-Kugel ist besser.'],
+        ['2 Punkte', false, 'Eure 12-cm-Kugel liegt schlechter als die gegnerische 10-cm-Kugel – sie zählt nicht.'],
+        ['0 Punkte', false, 'Eure 5-cm-Kugel liegt am nächsten – ihr punktet.'],
+      ] },
+    { id: 'kz2', th: 'kz', title: 'Punkte zählen II', ours: [[6, 40], [9, 150], [14, 250]], theirs: [[16, 90]], hand: [0, 0],
+      q: 'Alle Kugeln sind gespielt. Wie viele Punkte bekommt ihr?', a: [
+        ['3 Punkte', true, 'Alle drei eigenen Kugeln (6, 9 und 14 cm) liegen näher als die beste gegnerische (16 cm).'],
+        ['2 Punkte', false, 'Auch die 14-cm-Kugel liegt noch vor der gegnerischen 16-cm-Kugel.'],
+        ['1 Punkt', false, 'Es zählt jede Kugel vor der besten gegnerischen, nicht nur die beste.'],
+      ] },
+    { id: 'kz3', th: 'kz', title: 'Matchball', ours: [[40, 140]], theirs: [[35, 50]], hand: [1, 3], score: '12 : 6',
+      q: 'Ihr führt 12:6. Der Gegner liegt mit 35 cm, ihr habt eure letzte Kugel, der Gegner noch drei.', a: [
+        ['Legen', true, 'Ein sicherer Leger holt den Punkt. Bei 12 Punkten reicht euch jeder einzelne Punkt – und der Gegner muss mit drei Kugeln reagieren.'],
+        ['Schießen', false, 'Selbst ein Treffer nimmt nur eine mittelmäßige Kugel weg; der Gegner hat danach drei Kugeln.'],
+        ['Schweinchen schießen', false, 'Beide haben noch Kugeln – die Aufnahme würde nur neu gespielt. Ihr verschenkt euren Matchball.'],
+      ] },
+    { id: 'kz4', th: 'kz', title: 'Der Gegner steht vor dem Sieg', ours: [[30, 160]], theirs: [[6, 70], [9, 20]], hand: [2, 0], score: '10 : 12',
+      q: 'Ihr liegt 10:12 zurück. Der Gegner hält zwei Punkte (6 und 9 cm) und hat keine Kugel mehr. Ihr habt zwei.', a: [
+        ['Legen, bis ihr den Punkt habt', true, 'Jeder gegnerische Punkt beendet das Spiel. Ein Schuss reicht nicht, denn die zweite Kugel bleibt. Ihr müsst unter 6 cm legen – zwei Versuche.'],
+        ['Die beste Kugel schießen', false, 'Selbst ein Treffer lässt die 9-cm-Kugel liegen: Der Gegner punktet und gewinnt 13:10.'],
+        ['Abwarten und zählen lassen', false, 'Dann bekommt der Gegner zwei Punkte und gewinnt. Kugeln zählen heißt: vorher rechnen, was reicht.'],
+      ] },
+    { id: 'kz5', th: 'kz', title: 'Kugelvorteil nutzen', ours: [], theirs: [[30, 40]], hand: [3, 1], score: '12 : 12',
+      q: 'Bei 12:12 liegt der Gegner mit 30 cm und hat noch eine Kugel. Ihr habt drei.', a: [
+        ['Erst legen', true, 'Mit 3 gegen 1 Kugel habt ihr die Kontrolle. Legt den Punkt; muss der Gegner dann schießen oder legen, habt ihr noch zwei Kugeln zum Antworten.'],
+        ['Sofort schießen', false, 'Auf 30 cm zu schießen verschwendet euren Kugelvorteil.'],
+        ['Schweinchen schießen', false, 'Beide haben Kugeln – die Aufnahme würde nur neu gespielt, euer Vorteil wäre weg.'],
+      ] },
+    { id: 'kz6', th: 'kz', title: 'Wie viele Punkte drohen?', ours: [[25, 200]], theirs: [[8, 40], [12, 130], [18, 300]], hand: [1, 0],
+      q: 'Der Gegner hat keine Kugel mehr, ihr habt eine. Wie viele Punkte bekommt der Gegner, wenn ihr eure Kugel ins Aus werft?', a: [
+        ['3 Punkte', true, 'Alle drei gegnerischen Kugeln (8, 12, 18 cm) liegen besser als eure beste (25 cm).'],
+        ['1 Punkt', false, 'Es zählt jede gegnerische Kugel, die besser liegt als eure beste – nicht nur die beste.'],
+        ['2 Punkte', false, 'Auch die 18-cm-Kugel liegt vor eurer 25-cm-Kugel.'],
+      ] },
+    { id: 'sr1', th: 'sr', title: 'Drei Punkte drohen', ours: [], theirs: [[3, 120], [5, 340], [10, 90]], hand: [1, 0], edge: true,
+      q: 'Der Gegner liegt mit 3 Kugeln und hat keine mehr. Ihr habt die letzte. Das Schweinchen liegt 30 cm vor der Auslinie.', a: [
         ['Schweinchen ins Aus schießen', true, 'Verlässt das Schweinchen das Spielfeld, ist es tot. Da danach kein Team mehr Kugeln hat, ist die Aufnahme ungültig (Art. 14) – die 3 Punkte sind gerettet.'],
+        ['Legen', false, 'Selbst ein perfekter Leger rettet nur Punkte, wenn er besser liegt als alle drei – sehr unwahrscheinlich.'],
+        ['Eine Kugel wegschießen', false, 'Dann bekommt der Gegner immer noch 2 Punkte.'],
       ] },
-    { title: 'Matchball', ours: [[40, 45]], theirs: [[-25, 35]], hand: [1, 3], score: '12 : 6',
-      q: 'Ihr führt 12:6. Der Gegner liegt mit 43 cm, du hast deine letzte Kugel, der Gegner noch drei.', a: [
-        ['Legen', true, 'Ein sicherer Leger unter 43 cm holt den Punkt – und der Gegner muss dann mit seinen drei Kugeln reagieren. Mit 12 Punkten reicht dir jeder einzelne Punkt zum Sieg.'],
-        ['Schießen', false, 'Selbst ein Treffer nimmt nur eine mittelmäßige Kugel weg; der Gegner hat danach drei Kugeln, um den Punkt zu holen.'],
+    { id: 'sr2', th: 'sr', title: 'Schweinchen zurückholen', ours: [[30, 85], [38, 100]], theirs: [[6, 270]], hand: [2, 0],
+      q: 'Der Gegner liegt 6 cm vor dem Schweinchen und hat keine Kugel mehr. Eure zwei Kugeln liegen 30–40 cm dahinter. Ihr habt noch zwei.', a: [
+        ['Schweinchen zu euren Kugeln schießen', true, 'Bleibt das Schweinchen im Feld und rollt nach hinten, liegen plötzlich eure Kugeln vorn – das kann mehrere Punkte bringen. Ihr habt danach noch eine Kugel zum Legen.'],
+        ['Legen', false, 'Ihr müsstet unter 6 cm legen; selbst dann bekommt ihr höchstens einen Punkt.'],
+        ['Die gegnerische Kugel schießen', false, 'Möglich, aber dann zählen nur eure Kugeln in 30–40 cm – weniger als nach einem gelungenen Schweinchenschuss.'],
       ] },
-    { title: 'Zwei gegnerische Kugeln liegen', ours: [[30, 25]], theirs: [[-4, 6], [7, -3]], hand: [3, 1],
-      q: 'Der Gegner hält zwei Punkte (7 und 8 cm), hat noch eine Kugel. Du hast drei.', a: [
-        ['Legen', false, 'Du müsstest unter 7 cm legen, und der Gegner hat noch eine Kugel zum Antworten.'],
-        ['Schießen', true, 'Schießen räumt eine der sehr guten Kugeln ab. Mit 3 gegen 1 Kugel hast du danach genug Kugeln, um nachzulegen.'],
+    { id: 'sr3', th: 'sr', title: 'Wer spielt jetzt?', ours: [[15, 60]], theirs: [[8, 200]], hand: [2, 3],
+      q: 'Der Gegner liegt mit 8 cm am nächsten. Ihr habt 2 Kugeln, der Gegner 3. Wer spielt?', a: [
+        ['Ihr', true, 'Es spielt immer das Team, das den Punkt nicht hält – so lange, bis es den Punkt hat oder keine Kugeln mehr (Art. 16).'],
+        ['Der Gegner, weil er mehr Kugeln hat', false, 'Die Zahl der Kugeln entscheidet nicht – nur, wer den Punkt hält.'],
+        ['Abwechselnd', false, 'Abwechselnd gespielt wird nur bei exakt gleichem Abstand (Art. 29).'],
       ] },
-    { title: 'Letzte Kugel gegen zwei Punkte', ours: [[22, 15]], theirs: [[-5, 6], [9, 6]], hand: [1, 0],
-      q: 'Der Gegner hält zwei Punkte (8 und 11 cm) und hat keine Kugel mehr. Du hast die letzte.', a: [
-        ['Legen', true, 'Nur ein Leger kann dir selbst einen Punkt bringen (unter 8 cm), und jeder Leger unter 11 cm nimmt dem Gegner einen Punkt.'],
-        ['Schießen', false, 'Selbst ein Treffer lässt dem Gegner meist einen Punkt; einen eigenen Punkt gibt es nur mit einem perfekten Carreau.'],
+    { id: 'sr4', th: 'sr', title: 'Gleich weit entfernt', ours: [[12, 30]], theirs: [[12, 150]], hand: [2, 2],
+      q: 'Eure und die gegnerische Kugel liegen exakt gleich weit (12 cm). Ihr habt zuletzt gespielt; beide haben noch Kugeln.', a: [
+        ['Ihr spielt weiter', true, 'Bei gleichem Abstand spielt das Team, das zuletzt gespielt hat, danach abwechselnd (Art. 29).'],
+        ['Der Gegner spielt', false, 'Nein – bei Gleichstand spielt zuerst das Team, das zuletzt gespielt hat.'],
+        ['Die Aufnahme ist ungültig', false, 'Ungültig ist sie nur, wenn es am Ende gleich bleibt und keiner mehr Kugeln hat.'],
       ] },
-    { title: 'Tête-à-tête, erste Kugel', ours: [], theirs: [[45, 40]], hand: [3, 2],
-      q: 'Im Tête-à-tête hat dein Gegner mit der ersten Kugel 60 cm gelegt.', a: [
-        ['Legen', true, 'Eine 60-cm-Kugel ist keine Bedrohung. Lege den Punkt – dann muss der Gegner Kugeln investieren.'],
-        ['Schießen', false, 'Du würdest eine Kugel für eine schlechte gegnerische Kugel verbrauchen.'],
+    { id: 'sr5', th: 'sr', title: 'Gleichstand am Ende', ours: [[10, 20]], theirs: [[10, 160]], hand: [0, 0],
+      q: 'Alle Kugeln sind gespielt. Die besten Kugeln beider Teams liegen exakt gleich weit entfernt.', a: [
+        ['Die Aufnahme ist ungültig, keiner punktet', true, 'Bleibt es gleich und hat keiner mehr Kugeln, ist die Aufnahme ungültig (Art. 29).'],
+        ['Beide bekommen einen Punkt', false, 'Punkte gibt es nur für Kugeln, die besser liegen als die beste gegnerische.'],
+        ['Wer zuletzt gespielt hat, bekommt den Punkt', false, 'Die Reihenfolge entscheidet nur, wer bei Gleichstand weiterspielt – nicht, wer punktet.'],
+      ] },
+    { id: 'sr6', th: 'sr', title: 'Totes Schweinchen I', ours: [[20, 40]], theirs: [[15, 140]], hand: [2, 1],
+      q: 'Ein Schuss befördert das Schweinchen ins Aus. Ihr habt noch 2 Kugeln, der Gegner 1.', a: [
+        ['Die Aufnahme wird neu gespielt', true, 'Haben beide Teams noch Kugeln, ist die Aufnahme ungültig und wird neu gespielt (Art. 14).'],
+        ['Ihr bekommt 2 Punkte', false, 'Punkte für die verbleibenden Kugeln gibt es nur, wenn ausschließlich ein Team noch Kugeln hat.'],
+        ['Es zählt, wie die Kugeln liegen', false, 'Ohne gültiges Schweinchen kann nicht gezählt werden.'],
+      ] },
+    { id: 'sr7', th: 'sr', title: 'Totes Schweinchen II', ours: [[20, 40]], theirs: [[15, 140]], hand: [2, 0],
+      q: 'Das Schweinchen wird ins Aus geschossen. Ihr habt noch 2 Kugeln, der Gegner keine mehr.', a: [
+        ['Ihr bekommt 2 Punkte', true, 'Hat nur ein Team noch Kugeln, erhält es so viele Punkte, wie es noch Kugeln in der Hand hat (Art. 14).'],
+        ['Die Aufnahme wird neu gespielt', false, 'Neu gespielt wird nur, wenn beide Teams noch Kugeln haben.'],
+        ['Der Gegner bekommt 1 Punkt', false, 'Seine Kugel zählt nicht mehr – ohne Schweinchen gibt es keine Lage zu werten.'],
+      ] },
+    { id: 'sr8', th: 'sr', title: 'Kugel zu früh aufgehoben', ours: [[8, 60]], theirs: [[12, 200]], hand: [0, 0],
+      q: 'Euer Mitspieler hebt eure 8-cm-Kugel auf, bevor sich beide Teams über die Punkte geeinigt haben. Was gilt?', a: [
+        ['Die Kugel zählt nicht', true, 'Kugeln, die vor der Einigung über die Punkte aufgehoben werden, sind tot (Art. 27). Erst messen und einigen, dann aufheben.'],
+        ['Sie wird zurückgelegt', false, 'Zurücklegen geht nur bei markierten, versehentlich verschobenen Kugeln – nicht beim Aufheben vor dem Zählen.'],
+        ['Der Gegner bekommt einen Strafpunkt', false, 'Es gibt keinen Strafpunkt – die Kugel ist einfach tot.'],
+      ] },
+    { id: 'ro1', th: 'ro', title: 'Triplette: Wer beginnt?', ours: [], theirs: [], hand: [6, 6],
+      q: 'Triplette, neue Aufnahme. Ihr habt das Schweinchen geworfen. Wer spielt eure erste Kugel?', a: [
+        ['Der Leger (Pointeur)', true, 'Üblich legt der Pointeur die erste Kugel. Der Schießer hält seine Kugeln zurück, bis es etwas zu schießen gibt.'],
+        ['Der Schießer (Tireur)', false, 'Es liegt noch nichts zum Schießen – der Schießer würde nur legen müssen.'],
+        ['Egal, wer zuerst bereitsteht', false, 'Mit fester Rollenverteilung spielt ihr planvoller: Erst legen, Schusskugeln aufheben.'],
+      ] },
+    { id: 'ro2', th: 'ro', title: 'Triplette: Sehr gute Gegnerkugel', ours: [[25, 150]], theirs: [[2, 60]], hand: [5, 5],
+      q: 'Triplette. Der Gegner liegt mit 2 cm, eure erste Kugel liegt 25 cm. Wer spielt als Nächstes?', a: [
+        ['Der Schießer', true, 'Eine 2-cm-Kugel überlegt man kaum – das ist die Aufgabe des Tireurs. Der Leger hebt sich seine Kugel für danach auf.'],
+        ['Der Leger', false, 'Ein Leger unter 2 cm ist sehr unwahrscheinlich – die Kugel wäre meist verschenkt.'],
+        ['Der Milieu legt eine Sperre', false, 'Gegen eine Kugel direkt am Schweinchen hilft keine Sperre.'],
+      ] },
+    { id: 'ro3', th: 'ro', title: 'Triplette: Wer legt nach?', ours: [], theirs: [[25, 70]], hand: [2, 0],
+      q: 'Triplette. Der Gegner hat keine Kugel mehr und liegt mit 25 cm. Ihr habt noch je eine Kugel bei Leger und Schießer.', a: [
+        ['Der Leger', true, 'Jetzt geht es ums Legen in Ruhe – das ist die Stärke des Pointeurs. Der Schießer bleibt als Reserve, falls der Leger zu kurz oder zu lang kommt.'],
+        ['Der Schießer schießt', false, 'Es gibt nichts zu schießen, was mehr bringt als Legen: Der Gegner ist leer.'],
+        ['Beide gleichzeitig', false, 'Kugeln werden einzeln gespielt (Art. 16).'],
       ] },
   ];
+  const SIT = SIT_RAW.map(s => ({ ...s, ours: s.ours.map(pol), theirs: s.theirs.map(pol) }));
+  const sitById = id => SIT.find(s => s.id === id);
+  const shuffle = arr => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
   /* ---------- Speicher ---------- */
   let trainings = A.LS.get('trainings', []);
@@ -145,6 +266,7 @@
 
   /* ---------- Ansichten ---------- */
   const root = $('trainRoot');
+  let setupTheme = 'ls';
   let view = S ? 'run' : 'home', setupEx = null, setupSel = [], statP = null, statCat = 'legen';
   function show(v) { view = v; render(); window.scrollTo(0, 0); }
 
@@ -172,6 +294,7 @@
       <div class="card" style="margin-top:10px"><h2>${esc(e.title)}</h2><p class="muted" style="margin:0 0 6px">${esc(e.short)}</p>
         <ul class="tips">${e.howto.map(h => `<li>${esc(h)}</li>`).join('')}</ul></div>
       ${e.tips ? `<div class="card"><h2>💡 Worauf achten</h2><ul class="tips">${e.tips.map(h => `<li>${esc(h)}</li>`).join('')}</ul></div>` : ''}
+      ${e.id === 'Q2' ? `<div class="card"><h2>Thema</h2><select class="f" id="qTheme">${Object.entries(THEMES).map(([k, v]) => `<option value="${k}" ${k === setupTheme ? 'selected' : ''}>${v} (${SIT.filter(x => x.th === k).length})</option>`).join('')}</select></div>` : ''}
       <div class="card"><h2>${quiz ? 'Wer löst die Aufgaben?' : 'Wer trainiert?'}</h2>
         <p class="muted" style="margin:0 0 6px">${quiz ? 'Ein Spieler oder Gast.' : 'Ein oder mehrere Spieler – die Reihenfolge der Auswahl ist die Wurfreihenfolge.'}</p>
         <ul class="plist">${[{ id: GAST, name: 'Gast (ohne Statistik)' }, ...pl].map(p => {
@@ -179,10 +302,11 @@
           return `<li data-sel="${p.id}" class="${i >= 0 ? 'sel' : ''}"><span class="av">${i >= 0 ? i + 1 : (p.id === GAST ? '?' : esc(p.name.slice(0, 2).toUpperCase()))}</span><span class="grow">${esc(p.name)}</span></li>`;
         }).join('')}</ul></div>
       <button class="btn primary block" data-act="start" ${setupSel.length ? '' : 'disabled'}>Training starten</button>`;
+    const qt = $('qTheme'); if (qt) qt.onchange = () => { setupTheme = qt.value; };
   }
 
   function startSession() {
-    const e = setupEx, bl = e.make();
+    const e = setupEx, bl = e.make(setupTheme);
     const steps = [];
     bl.forEach((b, bi) => setupSel.forEach(p => steps.push({ b: bi, p, res: [] })));
     S = { id: uid(), ex: e.id, date: Date.now(), players: [...setupSel], blocks: bl, steps, cur: 0 };
@@ -242,13 +366,16 @@
     </svg>`;
   }
   function renderQuiz(b, st) {
-    const s = SIT[b.sit], ans = st.res[0];
-    return `<div class="card"><h2>${esc(s.title)}</h2>${sitSvg(s)}<p style="margin:8px 0">${esc(s.q)}</p>
-      <div class="obtns qa">${s.a.map(([t, ok], i) => {
+    const s = b.sid ? sitById(b.sid) : SIT[b.sit], ans = st.res[0];
+    if (!s) return '<div class="card muted">Diese Situation gibt es nicht mehr – bitte „Weiter“.</div>';
+    const order = b.order || s.a.map((_, i) => i);
+    const right = s.a.find(x => x[1]);
+    return `<div class="card"><div class="muted" style="font-size:13px">${esc(THEMES[s.th] || '')}</div><h2>${esc(s.title)}</h2>${sitSvg(s)}<p style="margin:8px 0">${esc(s.q)}</p>
+      <div class="obtns qa">${order.map(i => { const [t, ok] = s.a[i];
         const cls = ans ? (ok ? 'z1' : (ans.i === i ? 'z4' : '')) : '';
         return `<button class="ob ${cls}" data-quiz="${i}" ${ans ? 'disabled' : ''}>${esc(t)}</button>`;
       }).join('')}</div>
-      ${ans ? `<div class="note" style="border-color:${ans.ok ? 'var(--ok)' : '#b44a35'};background:${ans.ok ? '#e3f1e7' : '#fde8e4'}"><b>${ans.ok ? 'Richtig.' : 'Eher nicht.'}</b> ${esc(s.a[ans.i][2])}${ans.ok ? '' : '<br><br><b>Empfehlung:</b> ' + esc(s.a.find(x => x[1])[2])}</div>` : ''}
+      ${ans ? `<div class="note" style="border-color:${ans.ok ? 'var(--ok)' : '#b44a35'};background:${ans.ok ? '#e3f1e7' : '#fde8e4'}"><b>${ans.ok ? 'Richtig.' : 'Nicht ganz.'}</b> ${esc(s.a[ans.i][2])}${ans.ok ? '' : `<br><br><b>Besser: ${esc(right[0])}.</b> ` + esc(right[2])}</div>` : ''}
       </div>`;
   }
 
@@ -361,7 +488,7 @@
       renderSetup(); return;
     }
     if (d.out) { const r = { k: d.out }; record(r); return; }
-    if (d.quiz) { const st = curStep(), s = SIT[S.blocks[st.b].sit], i = +d.quiz; record({ i, ok: !!s.a[i][1] }); return; }
+    if (d.quiz) { const st = curStep(), bb = S.blocks[st.b], s = bb.sid ? sitById(bb.sid) : SIT[bb.sit], i = +d.quiz; if (!s) return; record({ i, ok: !!s.a[i][1], sid: s.id, th: s.th }); return; }
     if (d.tdel) { if (confirm('Diese Trainingseinheit löschen?')) { trainings = trainings.filter(x => x.id !== d.tdel); saveT(); renderStats(); } return; }
     switch (d.act) {
       case 'home': show('home'); break;

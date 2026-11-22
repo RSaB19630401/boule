@@ -46,7 +46,7 @@ Fünf Reiter: **Messen** (Kamera → die 6 nächsten Kugeln mit Abstand), **Spie
 - **Legen:** Distanzleiter (6–10 m), Zufallsdistanz, Kurz–lang. Erfassung per Zone (≤10 / 10–30 / 30–50 / >50 cm) oder per Kamera je Runde.
 - **Schießen:** Trefferserie (6–9 m, Carreau/Treffer/Fehl), Kugel am Schweinchen, Schweinchen schießen.
 - **Präzisionsschießen:** komplett (5 Aufgaben × 6–9 m, max. 100) und kurz (6 m, max. 25); vereinfachte Wertung 5/3/1/0 nach DPV-Richtlinie DM Tireur (Stand 03/2026).
-- **Spielsituationen:** 8 Taktik-Aufgaben mit maßstäblicher Skizze und Erklärung (Empfehlungen, keine Regeln).
+- **Taktik-Quiz (v8):** 25 Situationen mit maßstäblicher Skizze, je 3 Antworten (gemischt) und Erklärung; Themen Legen oder Schießen, Kugelzählen & Spielstand, Schweinchen & Regeln, Rollen im Team. „Taktik-Quiz“ zieht 10 zufällige, „nach Thema“ geht ein Thema komplett durch. Regelfragen nach FIPJP (Art. 14, 16, 27, 29), Taktik = Empfehlungen.
 - Einzeln oder Gruppe (Auswahlreihenfolge = Wurfreihenfolge), „Gast“ ohne Statistik; laufende Einheit übersteht einen Neustart.
 - Auswertung je Spieler und Bereich; Trainings sind im Export enthalten.
 
